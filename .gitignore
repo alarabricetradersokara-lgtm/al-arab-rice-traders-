@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+*/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Builds & Outputs
+dist/
+*/dist/
+build/
+*/build/
+
+# Local Embedded Database & Binaries
+backend/pgdata/
+backend/pgsql/
+*.tmp*
+*.dll.node
+
+# Environment Variables & Secrets (Keep Secret!)
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+*.env
+
+# Neon & IDEs
+.neon/
+.vscode/
+.idea/
+.DS_Store
+*.log
+scratch/

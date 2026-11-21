@@ -1,0 +1,1270 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// =========================================================================
+// 1. AUTHENTICATION & ACCESS CONTROL
+// =========================================================================
+
+enum RoleName {
+  ADMIN
+  SUPER_ADMIN
+  ACCOUNTANT
+  STOCK_MANAGER
+  SALES_OPERATOR
+  VIEWER
+  BRANCH_MANAGER
+  PROCUREMENT_OFFICER
+  POS_CASHIER
+  MILL_SUPERVISOR
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  VOID
+  LOGIN
+  LOGOUT
+  PASSWORD_CHANGE
+  DAILY_CLOSING_APPROVE
+  STOCK_ADJUSTMENT
+}
+
+model User {
+  id           String        @id @default(uuid())
+  username     String        @unique @db.VarChar(50)
+  email        String        @unique @db.VarChar(100)
+  passwordHash String        @db.VarChar(255)
+  fullName     String        @db.VarChar(100)
+  phone        String?       @db.VarChar(20)
+  isActive     Boolean       @default(true)
+  roleId       String
+  role         Role          @relation(fields: [roleId], references: [id])
+  auditLogs    AuditLog[]
+  purchases    Purchase[]    @relation("UserPurchases")
+  sales        Sale[]        @relation("UserSales")
+  payments     Payment[]     @relation("UserPayments")
+  receipts     Receipt[]     @relation("UserReceipts")
+  expenses     Expense[]     @relation("UserExpenses")
+  batches      ProductionBatch[] @relation("UserBatches")
+  dailySalesEntries DailySalesEntry[] @relation("UserDailySales")
+  cashTransfers CashTransfer[]   @relation("UserCashTransfers")
+  otherIncomes OtherIncome[]     @relation("UserOtherIncomes")
+  journalEntries JournalEntry[]  @relation("UserJournalEntries")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([roleId])
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        RoleName         @unique
+  description String?          @db.VarChar(255)
+  users       User[]
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  code        String           @unique @db.VarChar(100) // e.g. "inventory:read", "pos:sale"
+  module      String           @db.VarChar(50)
+  description String?          @db.VarChar(255)
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  userId     String?
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     AuditAction
+  entityName String      @db.VarChar(50)
+  entityId   String      @db.VarChar(100)
+  oldValues  Json?
+  newValues  Json?
+  ipAddress  String?     @db.VarChar(45)
+  userAgent  String?     @db.VarChar(255)
+  timestamp  DateTime    @default(now())
+
+  @@index([entityName, entityId])
+  @@index([userId])
+  @@index([timestamp])
+}
+
+// =========================================================================
+// 2. RICE PRODUCT & CATEGORY REGISTRIES
+// =========================================================================
+
+enum GrainVariety {
+  SUPER_KERNEL_BASMATI
+  BASMATI_1121_KAINAT
+  BASMATI_385
+  IRRI_6
+  IRRI_9
+  PK_386
+  RAW_PADDY_DHAN
+  BROKEN_RICE_TOTA
+  RICE_BRAN_PHAK
+  RICE_HUSK_BHOOSA
+}
+
+enum GrainGrade {
+  RAW_WHITE
+  STEAM
+  SELLA_PARBOILED
+  BROWN
+  SECOND_GRADE
+  COMMERCIAL
+}
+
+model RiceCategory {
+  id          String        @id @default(uuid())
+  name        String        @unique @db.VarChar(100)
+  code        String        @unique @db.VarChar(30)
+  description String?       @db.Text
+  products    RiceProduct[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model RiceProduct {
+  id                  String             @id @default(uuid())
+  code                String             @unique @db.VarChar(50)
+  name                String             @db.VarChar(150)
+  categoryId          String
+  category            RiceCategory       @relation(fields: [categoryId], references: [id])
+  variety             GrainVariety
+  grade               GrainGrade         @default(RAW_WHITE)
+  baseUnit            String             @default("KG") @db.VarChar(10)
+  defaultBagWeightKg  Decimal            @default(50.0000) @db.Decimal(18, 4)
+  supportsMaund       Boolean            @default(true)
+  maundWeightKg       Decimal            @default(40.0000) @db.Decimal(18, 4)
+  costPricePerKg      Decimal            @default(0.0000) @db.Decimal(18, 4)
+  salePricePerKg      Decimal            @default(0.0000) @db.Decimal(18, 4)
+  reorderLevelKg      Decimal            @default(1000.0000) @db.Decimal(18, 4)
+  isActive            Boolean            @default(true)
+  stocks              Stock[]
+  stockMovements      StockMovement[]
+  purchaseItems       PurchaseItem[]
+  saleItems           SaleItem[]
+  productionInputs    ProductionInput[]
+  productionOutputs   ProductionOutput[]
+  dailySalesLines     DailySalesEntryLine[]
+  exportInvoiceItems  ExportInvoiceItem[]
+  transferItems       WarehouseTransferItem[]
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([categoryId])
+  @@index([variety])
+}
+
+// =========================================================================
+// 3. WAREHOUSE & DUAL-UNIT INVENTORY
+// =========================================================================
+
+model Warehouse {
+  id                String            @id @default(uuid())
+  code              String            @unique @db.VarChar(30)
+  name              String            @db.VarChar(100)
+  location          String?           @db.Text
+  capacityBags      Int?
+  capacityKg        Decimal?          @db.Decimal(18, 4)
+  isActive          Boolean           @default(true)
+  stocks            Stock[]
+  stockMovements    StockMovement[]
+  purchases         Purchase[]
+  sales             Sale[]
+  productionBatches ProductionBatch[]
+  dailySalesEntries DailySalesEntry[]
+  sentTransfers     WarehouseTransfer[] @relation("TransferSourceWarehouse")
+  receivedTransfers WarehouseTransfer[] @relation("TransferDestinationWarehouse")
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+model Stock {
+  id                 String       @id @default(uuid())
+  warehouseId        String
+  warehouse          Warehouse    @relation(fields: [warehouseId], references: [id])
+  productId          String
+  product            RiceProduct  @relation(fields: [productId], references: [id])
+  currentBags        Int          @default(0)
+  currentWeightKg    Decimal      @default(0.0000) @db.Decimal(18, 4)
+  reservedBags       Int          @default(0)
+  reservedWeightKg   Decimal      @default(0.0000) @db.Decimal(18, 4)
+  availableBags      Int          @default(0)
+  availableWeightKg  Decimal      @default(0.0000) @db.Decimal(18, 4)
+  lastMovementDate   DateTime?
+  updatedAt          DateTime     @updatedAt
+
+  @@unique([warehouseId, productId])
+  @@index([warehouseId])
+  @@index([productId])
+}
+
+enum StockMovementType {
+  OPENING_STOCK
+  PURCHASE
+  PURCHASE_RETURN
+  SALE
+  SALE_RETURN
+  PRODUCTION_INPUT
+  PRODUCTION_OUTPUT
+  ADJUSTMENT
+  WASTAGE
+}
+
+model StockMovement {
+  id               String            @id @default(uuid())
+  movementNumber   String            @unique @db.VarChar(100)
+  movementType     StockMovementType
+  warehouseId      String
+  warehouse        Warehouse         @relation(fields: [warehouseId], references: [id])
+  productId        String
+  product          RiceProduct       @relation(fields: [productId], references: [id])
+  bagCountDelta    Int               // Positive for IN, Negative for OUT
+  weightKgDelta    Decimal           @db.Decimal(18, 4) // Positive for IN, Negative for OUT
+  unitCostPerKg    Decimal           @db.Decimal(18, 4)
+  totalCost        Decimal           @db.Decimal(18, 4)
+  referenceType    String            @db.VarChar(50) // "Purchase", "Sale", "ProductionBatch", etc.
+  referenceId      String            @db.VarChar(100)
+  notes            String?           @db.Text
+  createdById      String?
+  createdAt        DateTime          @default(now())
+
+  @@index([warehouseId, productId])
+  @@index([movementType])
+  @@index([referenceType, referenceId])
+}
+
+// =========================================================================
+// 4. PARTIES: CUSTOMERS & SUPPLIERS
+// =========================================================================
+
+model Customer {
+  id              String           @id @default(uuid())
+  code            String           @unique @db.VarChar(30)
+  name            String           @db.VarChar(150)
+  businessName    String?          @db.VarChar(150)
+  phone           String           @db.VarChar(30)
+  alternatePhone  String?          @db.VarChar(30)
+  email           String?          @db.VarChar(100)
+  address         String?          @db.Text
+  city            String?          @db.VarChar(50)
+  taxNumber       String?          @db.VarChar(50)
+  creditLimit     Decimal          @default(0.0000) @db.Decimal(18, 4)
+  openingBalance  Decimal          @default(0.0000) @db.Decimal(18, 4)
+  currentBalance  Decimal          @default(0.0000) @db.Decimal(18, 4) // Positive: Receivable (Debit)
+  customerType    String?          @default("WHOLESALER") @db.VarChar(50)
+  notes           String?          @db.Text
+  isActive        Boolean          @default(true)
+  sales           Sale[]
+  customerLedgers CustomerLedger[]
+  receipts        Receipt[]
+  dailySalesAllocations DailySalesCustomerAllocation[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([phone])
+  @@index([currentBalance])
+}
+
+model Supplier {
+  id              String           @id @default(uuid())
+  code            String           @unique @db.VarChar(30)
+  name            String           @db.VarChar(150)
+  businessName    String?          @db.VarChar(150)
+  phone           String           @db.VarChar(30)
+  alternatePhone  String?          @db.VarChar(30)
+  email           String?          @db.VarChar(100)
+  address         String?          @db.Text
+  city            String?          @db.VarChar(50)
+  taxNumber       String?          @db.VarChar(50)
+  openingBalance  Decimal          @default(0.0000) @db.Decimal(18, 4)
+  currentBalance  Decimal          @default(0.0000) @db.Decimal(18, 4) // Positive: Payable (Credit)
+  paymentTerms    String?          @default("MANDI_CYCLE") @db.VarChar(50)
+  notes           String?          @db.Text
+  isArthi         Boolean          @default(false)
+  isActive        Boolean          @default(true)
+  purchases       Purchase[]
+  supplierLedgers SupplierLedger[]
+  payments        Payment[]
+  commissions     Commission[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([phone])
+  @@index([isArthi])
+  @@index([currentBalance])
+}
+
+// =========================================================================
+// 5. PROCUREMENT & PURCHASES (WEIGHBRIDGE & ARTHI)
+// =========================================================================
+
+enum PaymentType {
+  CASH
+  CREDIT
+  BANK
+  CHEQUE
+  PARTIAL
+  SPLIT
+}
+
+enum PurchaseStatus {
+  DRAFT
+  RECEIVED
+  BILLED
+  CANCELLED
+}
+
+model Purchase {
+  id                       String           @id @default(uuid())
+  purchaseNumber           String           @unique @db.VarChar(50)
+  supplierId               String
+  supplier                 Supplier         @relation(fields: [supplierId], references: [id])
+  warehouseId              String
+  warehouse                Warehouse        @relation(fields: [warehouseId], references: [id])
+  purchaseDate             DateTime
+  paymentType              PaymentType
+  status                   PurchaseStatus   @default(BILLED)
+  subTotal                 Decimal          @db.Decimal(18, 4)
+  moistureDeductionWeightKg Decimal         @default(0.0000) @db.Decimal(18, 4)
+  moistureDeductionAmount  Decimal          @default(0.0000) @db.Decimal(18, 4)
+  bardanaTareDeductionKg   Decimal          @default(0.0000) @db.Decimal(18, 4)
+  kardaDeductionAmount     Decimal          @default(0.0000) @db.Decimal(18, 4)
+  commissionAmount         Decimal          @default(0.0000) @db.Decimal(18, 4)
+  palledariAmount          Decimal          @default(0.0000) @db.Decimal(18, 4)
+  freightAmount            Decimal          @default(0.0000) @db.Decimal(18, 4)
+  netAmount                Decimal          @db.Decimal(18, 4)
+  paidAmount               Decimal          @default(0.0000) @db.Decimal(18, 4)
+  balanceAmount            Decimal          @default(0.0000) @db.Decimal(18, 4)
+  truckNumber              String?          @db.VarChar(50)
+  biltyNumber              String?          @db.VarChar(50)
+  notes                    String?          @db.Text
+  items                    PurchaseItem[]
+  returns                  PurchaseReturn[]
+  commissions              Commission[]
+  createdById              String?
+  createdBy                User?            @relation("UserPurchases", fields: [createdById], references: [id])
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+
+  @@index([supplierId])
+  @@index([warehouseId])
+  @@index([purchaseDate])
+}
+
+model PurchaseItem {
+  id             String      @id @default(uuid())
+  purchaseId     String
+  purchase       Purchase    @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  productId      String
+  product        RiceProduct @relation(fields: [productId], references: [id])
+  bagCount       Int
+  bagWeightKg    Decimal     @db.Decimal(18, 4)
+  grossWeightKg  Decimal     @db.Decimal(18, 4)
+  bardanaTareKg  Decimal     @default(0.0000) @db.Decimal(18, 4)
+  netWeightKg    Decimal     @db.Decimal(18, 4)
+  unitPricePerKg Decimal     @db.Decimal(18, 4)
+  lineTotal      Decimal     @db.Decimal(18, 4)
+
+  @@index([purchaseId])
+  @@index([productId])
+}
+
+model PurchaseReturn {
+  id             String      @id @default(uuid())
+  returnNumber   String      @unique @db.VarChar(50)
+  purchaseId     String
+  purchase       Purchase    @relation(fields: [purchaseId], references: [id])
+  supplierId     String
+  returnDate     DateTime
+  totalWeightKg  Decimal     @db.Decimal(18, 4)
+  totalBags      Int
+  totalAmount    Decimal     @db.Decimal(18, 4)
+  reason         String?     @db.Text
+  createdAt      DateTime    @default(now())
+
+  @@index([purchaseId])
+}
+
+// =========================================================================
+// 6. SALES & HIGH-SPEED POS (WHOLESALE & RETAIL)
+// =========================================================================
+
+enum SaleStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+model Sale {
+  id             String            @id @default(uuid())
+  invoiceNumber  String            @unique @db.VarChar(50)
+  customerId     String?
+  customer       Customer?         @relation(fields: [customerId], references: [id])
+  warehouseId    String
+  warehouse      Warehouse         @relation(fields: [warehouseId], references: [id])
+  saleDate       DateTime
+  paymentType    PaymentType
+  status         SaleStatus        @default(COMPLETED)
+  subTotal       Decimal           @db.Decimal(18, 4)
+  discountAmount Decimal           @default(0.0000) @db.Decimal(18, 4)
+  taxAmount      Decimal           @default(0.0000) @db.Decimal(18, 4)
+  freightAmount  Decimal           @default(0.0000) @db.Decimal(18, 4)
+  netAmount      Decimal           @db.Decimal(18, 4)
+  paidAmount     Decimal           @default(0.0000) @db.Decimal(18, 4)
+  balanceAmount  Decimal           @default(0.0000) @db.Decimal(18, 4)
+  truckNumber    String?           @db.VarChar(50)
+  gatePassNumber String?           @db.VarChar(50)
+  notes          String?           @db.Text
+  items          SaleItem[]
+  returns        SalesReturn[]
+  dailyItems     DailySalesItem[]
+  createdById    String?
+  createdBy      User?             @relation("UserSales", fields: [createdById], references: [id])
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([customerId])
+  @@index([warehouseId])
+  @@index([saleDate])
+}
+
+model SaleItem {
+  id              String      @id @default(uuid())
+  saleId          String
+  sale            Sale        @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId       String
+  product         RiceProduct @relation(fields: [productId], references: [id])
+  bagCount        Int         @default(0)
+  bagWeightKg     Decimal     @default(50.0000) @db.Decimal(18, 4)
+  netWeightKg     Decimal     @db.Decimal(18, 4)
+  unitPricePerKg  Decimal     @db.Decimal(18, 4)
+  unitPricePerBag Decimal?    @db.Decimal(18, 4)
+  lineTotal       Decimal     @db.Decimal(18, 4)
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+model SalesReturn {
+  id             String      @id @default(uuid())
+  returnNumber   String      @unique @db.VarChar(50)
+  saleId         String
+  sale           Sale        @relation(fields: [saleId], references: [id])
+  customerId     String?
+  returnDate     DateTime
+  totalWeightKg  Decimal     @db.Decimal(18, 4)
+  totalBags      Int
+  totalAmount    Decimal     @db.Decimal(18, 4)
+  reason         String?     @db.Text
+  createdAt      DateTime    @default(now())
+
+  @@index([saleId])
+}
+
+// =========================================================================
+// 7. DAILY SALES REGISTER & EOD SHIFT RECONCILIATION
+// =========================================================================
+
+enum DailyShiftStatus {
+  OPEN
+  CLOSED
+}
+
+model DailySalesSummary {
+  id                   String           @id @default(uuid())
+  summaryDate          DateTime         @unique @db.Date
+  totalCashSales       Decimal          @default(0.0000) @db.Decimal(18, 4)
+  totalCreditSales     Decimal          @default(0.0000) @db.Decimal(18, 4)
+  totalBankSales       Decimal          @default(0.0000) @db.Decimal(18, 4)
+  totalSalesAmount     Decimal          @default(0.0000) @db.Decimal(18, 4)
+  totalWeightSoldKg    Decimal          @default(0.0000) @db.Decimal(18, 4)
+  totalBagsSold        Int              @default(0)
+  totalTransactions    Int              @default(0)
+  openingCashFloat     Decimal          @default(0.0000) @db.Decimal(18, 4)
+  closingCashCounted   Decimal?         @db.Decimal(18, 4)
+  cashDiscrepancy      Decimal?         @db.Decimal(18, 4)
+  status               DailyShiftStatus @default(OPEN)
+  closedAt             DateTime?
+  closedBy             String?          @db.VarChar(100)
+  items                DailySalesItem[]
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  @@index([status])
+}
+
+model DailySalesItem {
+  id             String            @id @default(uuid())
+  summaryId      String
+  summary        DailySalesSummary @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+  saleId         String
+  sale           Sale              @relation(fields: [saleId], references: [id])
+  invoiceNumber  String            @db.VarChar(50)
+  customerName   String            @db.VarChar(150)
+  paymentType    PaymentType
+  amount         Decimal           @db.Decimal(18, 4)
+  bagCount       Int
+  weightKg       Decimal           @db.Decimal(18, 4)
+
+  @@index([summaryId])
+}
+
+enum DailySalesStatus {
+  DRAFT
+  SUBMITTED
+  CONFIRMED
+  REVERSED
+}
+
+model DailySalesEntry {
+  id                   String           @id @default(uuid())
+  entryNumber          String           @unique @db.VarChar(50)
+  salesDate            DateTime         @db.Date
+  warehouseId          String
+  warehouse            Warehouse        @relation(fields: [warehouseId], references: [id])
+  status               DailySalesStatus @default(DRAFT)
+  grossAmount          Decimal          @default(0.0000) @db.Decimal(18, 4)
+  discountAmount       Decimal          @default(0.0000) @db.Decimal(18, 4)
+  commissionAmount     Decimal          @default(0.0000) @db.Decimal(18, 4)
+  netAmount            Decimal          @default(0.0000) @db.Decimal(18, 4)
+  totalCogs            Decimal          @default(0.0000) @db.Decimal(18, 4)
+  grossProfit          Decimal          @default(0.0000) @db.Decimal(18, 4)
+  totalBagsSold        Int              @default(0)
+  totalWeightSoldKg    Decimal          @default(0.0000) @db.Decimal(18, 4)
+  cashAmount           Decimal          @default(0.0000) @db.Decimal(18, 4)
+  creditAmount         Decimal          @default(0.0000) @db.Decimal(18, 4)
+  unallocatedCredit    Decimal          @default(0.0000) @db.Decimal(18, 4)
+  cashAccountId        String?
+  cashAccount          CashAccount?     @relation(fields: [cashAccountId], references: [id])
+  notes                String?          @db.Text
+  reversalReason       String?          @db.Text
+  confirmedAt          DateTime?
+  confirmedById        String?
+  reversedAt           DateTime?
+  reversedById         String?
+  createdById          String?
+  createdBy            User?            @relation("UserDailySales", fields: [createdById], references: [id])
+  lines                DailySalesEntryLine[]
+  customerAllocations  DailySalesCustomerAllocation[]
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  @@index([salesDate])
+  @@index([warehouseId])
+  @@index([status])
+}
+
+model DailySalesEntryLine {
+  id             String          @id @default(uuid())
+  entryId        String
+  entry          DailySalesEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  productId      String
+  product        RiceProduct     @relation(fields: [productId], references: [id])
+  bagCount       Int             @default(0)
+  weightKg       Decimal         @db.Decimal(18, 4)
+  ratePerKg      Decimal         @db.Decimal(18, 4)
+  lineTotal      Decimal         @db.Decimal(18, 4)
+  unitCostPerKg  Decimal         @db.Decimal(18, 4)
+  cogsAmount     Decimal         @db.Decimal(18, 4)
+  grossProfit    Decimal         @db.Decimal(18, 4)
+
+  @@index([entryId])
+  @@index([productId])
+}
+
+model DailySalesCustomerAllocation {
+  id             String          @id @default(uuid())
+  entryId        String
+  entry          DailySalesEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  customerId     String?
+  customer       Customer?       @relation(fields: [customerId], references: [id])
+  customerName   String          @db.VarChar(150)
+  amount         Decimal         @db.Decimal(18, 4)
+  notes          String?         @db.Text
+
+  @@index([entryId])
+  @@index([customerId])
+}
+
+// =========================================================================
+// 8. CASH & BANK ACCOUNTS, PAYMENTS, RECEIPTS & EXPENSES
+// =========================================================================
+
+model CashAccount {
+  id          String     @id @default(uuid())
+  code        String     @unique @db.VarChar(30)
+  name        String     @db.VarChar(100)
+  balance     Decimal    @default(0.0000) @db.Decimal(18, 4)
+  payments    Payment[]
+  receipts    Receipt[]
+  expenses    Expense[]
+  otherIncomes OtherIncome[]
+  fromTransfers CashTransfer[] @relation("FromCashTransfers")
+  toTransfers   CashTransfer[] @relation("ToCashTransfers")
+  dailySalesEntries DailySalesEntry[]
+  agentPayments CommissionPayment[] @relation("AgentPaymentCash")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model BankAccount {
+  id             String     @id @default(uuid())
+  code           String     @unique @db.VarChar(30)
+  bankName       String     @db.VarChar(100)
+  accountNumber  String     @unique @db.VarChar(50)
+  branchName     String?    @db.VarChar(100)
+  iban           String?    @db.VarChar(50)
+  currentBalance Decimal    @default(0.0000) @db.Decimal(18, 4)
+  payments       Payment[]
+  receipts       Receipt[]
+  expenses       Expense[]
+  otherIncomes   OtherIncome[]
+  fromTransfers  CashTransfer[] @relation("FromBankTransfers")
+  toTransfers    CashTransfer[] @relation("ToBankTransfers")
+  agentPayments  CommissionPayment[] @relation("AgentPaymentBank")
+  exportPayments ExportPayment[] @relation("ExportPaymentBank")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model Payment {
+  id              String       @id @default(uuid())
+  paymentNumber   String       @unique @db.VarChar(50)
+  supplierId      String
+  supplier        Supplier     @relation(fields: [supplierId], references: [id])
+  paymentDate     DateTime
+  amount          Decimal      @db.Decimal(18, 4)
+  paymentMethod   PaymentType  // CASH, BANK, CHEQUE
+  cashAccountId   String?
+  cashAccount     CashAccount? @relation(fields: [cashAccountId], references: [id])
+  bankAccountId   String?
+  bankAccount     BankAccount? @relation(fields: [bankAccountId], references: [id])
+  chequeNumber    String?      @db.VarChar(50)
+  chequeDate      DateTime?
+  referenceNumber String?      @db.VarChar(100)
+  notes           String?      @db.Text
+  status          String       @default("POSTED") @db.VarChar(20) // "POSTED" | "REVERSED"
+  reversalRef     String?      @db.VarChar(50)
+  createdById     String?
+  createdBy       User?        @relation("UserPayments", fields: [createdById], references: [id])
+  createdAt       DateTime     @default(now())
+
+  @@index([supplierId])
+  @@index([paymentDate])
+  @@index([status])
+}
+
+model Receipt {
+  id              String       @id @default(uuid())
+  receiptNumber   String       @unique @db.VarChar(50)
+  customerId      String
+  customer        Customer     @relation(fields: [customerId], references: [id])
+  receiptDate     DateTime
+  amount          Decimal      @db.Decimal(18, 4)
+  paymentMethod   PaymentType  // CASH, BANK, CHEQUE
+  cashAccountId   String?
+  cashAccount     CashAccount? @relation(fields: [cashAccountId], references: [id])
+  bankAccountId   String?
+  bankAccount     BankAccount? @relation(fields: [bankAccountId], references: [id])
+  chequeNumber    String?      @db.VarChar(50)
+  chequeDate      DateTime?
+  referenceNumber String?      @db.VarChar(100)
+  notes           String?      @db.Text
+  status          String       @default("POSTED") @db.VarChar(20) // "POSTED" | "REVERSED"
+  reversalRef     String?      @db.VarChar(50)
+  createdById     String?
+  createdBy       User?        @relation("UserReceipts", fields: [createdById], references: [id])
+  createdAt       DateTime     @default(now())
+
+  @@index([customerId])
+  @@index([receiptDate])
+  @@index([status])
+}
+
+model Expense {
+  id            String       @id @default(uuid())
+  expenseNumber String       @unique @db.VarChar(50)
+  category      String       @db.VarChar(100) // Electricity, Mill Labor, Machine Maintenance, Tea/Office, Salaries, Rent, Transportation, Repair, Office, Other
+  title         String       @db.VarChar(150)
+  description   String?      @db.Text
+  amount        Decimal      @db.Decimal(18, 4)
+  expenseDate   DateTime
+  paymentMethod PaymentType
+  cashAccountId String?
+  cashAccount   CashAccount? @relation(fields: [cashAccountId], references: [id])
+  bankAccountId String?
+  bankAccount   BankAccount? @relation(fields: [bankAccountId], references: [id])
+  paidTo        String?      @db.VarChar(150)
+  status        String       @default("POSTED") @db.VarChar(20) // "POSTED" | "REVERSED"
+  reversalRef   String?      @db.VarChar(50)
+  createdById   String?
+  createdBy     User?        @relation("UserExpenses", fields: [createdById], references: [id])
+  createdAt     DateTime     @default(now())
+
+  @@index([category])
+  @@index([expenseDate])
+  @@index([status])
+}
+
+model CashTransfer {
+  id                 String       @id @default(uuid())
+  transferNumber     String       @unique @db.VarChar(50)
+  transferDate       DateTime     @default(now())
+  fromAccountType    String       @db.VarChar(10) // "CASH" | "BANK"
+  fromCashAccountId  String?
+  fromCashAccount    CashAccount? @relation("FromCashTransfers", fields: [fromCashAccountId], references: [id])
+  fromBankAccountId  String?
+  fromBankAccount    BankAccount? @relation("FromBankTransfers", fields: [fromBankAccountId], references: [id])
+  toAccountType      String       @db.VarChar(10) // "CASH" | "BANK"
+  toCashAccountId    String?
+  toCashAccount      CashAccount? @relation("ToCashTransfers", fields: [toCashAccountId], references: [id])
+  toBankAccountId    String?
+  toBankAccount      BankAccount? @relation("ToBankTransfers", fields: [toBankAccountId], references: [id])
+  amount             Decimal      @db.Decimal(18, 4)
+  referenceNumber    String?      @db.VarChar(100)
+  notes              String?      @db.Text
+  status             String       @default("POSTED") @db.VarChar(20) // "POSTED" | "REVERSED"
+  reversalRef        String?      @db.VarChar(50)
+  createdById        String?
+  createdBy          User?        @relation("UserCashTransfers", fields: [createdById], references: [id])
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([transferDate])
+  @@index([status])
+}
+
+model OtherIncome {
+  id                 String       @id @default(uuid())
+  incomeNumber       String       @unique @db.VarChar(50)
+  category           String       @db.VarChar(100) // MILLING_CHARGES, BARDANA_SALES, HUSK_SALES, WEIGHBRIDGE_FEE, BANK_PROFIT, SCRAP_SALES, OTHER
+  title              String       @db.VarChar(150)
+  description        String?      @db.Text
+  amount             Decimal      @db.Decimal(18, 4)
+  incomeDate         DateTime     @default(now())
+  paymentMethod      PaymentType  @default(CASH)
+  cashAccountId      String?
+  cashAccount        CashAccount? @relation(fields: [cashAccountId], references: [id])
+  bankAccountId      String?
+  bankAccount        BankAccount? @relation(fields: [bankAccountId], references: [id])
+  referenceNumber    String?      @db.VarChar(100)
+  receivedFrom       String?      @db.VarChar(150)
+  status             String       @default("POSTED") @db.VarChar(20) // "POSTED" | "REVERSED"
+  reversalRef        String?      @db.VarChar(50)
+  createdById        String?
+  createdBy          User?        @relation("UserOtherIncomes", fields: [createdById], references: [id])
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([category])
+  @@index([incomeDate])
+  @@index([status])
+}
+
+model JournalEntry {
+  id                 String             @id @default(uuid())
+  entryNumber        String             @unique @db.VarChar(50) // "JV-202611-001"
+  entryDate          DateTime           @default(now())
+  voucherType        String             @default("GENERAL") @db.VarChar(30) // "GENERAL", "CASH_PAYMENT", "CASH_RECEIPT", "BANK_PAYMENT", "BANK_RECEIPT", "SALES", "PURCHASE", "REVERSAL"
+  referenceNo        String?            @db.VarChar(100)
+  narration          String             @db.Text
+  totalDebit         Decimal            @db.Decimal(18, 4)
+  totalCredit        Decimal            @db.Decimal(18, 4)
+  status             String             @default("POSTED") @db.VarChar(20) // "POSTED", "REVERSED"
+  reversalRef        String?            @db.VarChar(50)
+  lines              JournalEntryLine[]
+  createdById        String?
+  createdBy          User?              @relation("UserJournalEntries", fields: [createdById], references: [id])
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([entryDate])
+  @@index([voucherType])
+  @@index([status])
+}
+
+model JournalEntryLine {
+  id                 String             @id @default(uuid())
+  entryId            String
+  entry              JournalEntry       @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountCode        String             @db.VarChar(50) // e.g. "1010-CASH", "1020-BANK", "1100-AR", "2010-AP", "4010-SALES", "5010-COGS", "6010-SALARIES", "6020-ELECTRICITY", etc.
+  accountName        String             @db.VarChar(150)
+  accountType        String             @db.VarChar(50) // "ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"
+  debit              Decimal            @default(0.0000) @db.Decimal(18, 4)
+  credit             Decimal            @default(0.0000) @db.Decimal(18, 4)
+  memo               String?            @db.VarChar(255)
+
+  @@index([entryId])
+  @@index([accountCode])
+  @@index([accountType])
+}
+
+// =========================================================================
+// 9. PARTY LEDGERS (KHATABOOK RUNNING BALANCES)
+// =========================================================================
+
+enum LedgerTransactionType {
+  SALE
+  PURCHASE
+  PAYMENT
+  RECEIPT
+  SALE_RETURN
+  PURCHASE_RETURN
+  COMMISSION
+  ADJUSTMENT
+  OPENING_BALANCE
+}
+
+model CustomerLedger {
+  id              String                @id @default(uuid())
+  customerId      String
+  customer        Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  date            DateTime
+  transactionType LedgerTransactionType
+  referenceNo     String                @db.VarChar(50)
+  description     String                @db.VarChar(255)
+  debit           Decimal               @default(0.0000) @db.Decimal(18, 4)
+  credit          Decimal               @default(0.0000) @db.Decimal(18, 4)
+  runningBalance  Decimal               @db.Decimal(18, 4)
+  createdAt       DateTime              @default(now())
+
+  @@unique([customerId, referenceNo, transactionType])
+  @@index([customerId, date])
+}
+
+model SupplierLedger {
+  id              String                @id @default(uuid())
+  supplierId      String
+  supplier        Supplier              @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  date            DateTime
+  transactionType LedgerTransactionType
+  referenceNo     String                @db.VarChar(50)
+  description     String                @db.VarChar(255)
+  debit           Decimal               @default(0.0000) @db.Decimal(18, 4)
+  credit          Decimal               @default(0.0000) @db.Decimal(18, 4)
+  runningBalance  Decimal               @db.Decimal(18, 4)
+  createdAt       DateTime              @default(now())
+
+  @@unique([supplierId, referenceNo, transactionType])
+  @@index([supplierId, date])
+}
+
+// =========================================================================
+// 10. RICE MILLING, PRODUCTION & YIELD PROCESSING
+// =========================================================================
+
+enum ProductionStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum OutputType {
+  HEAD_RICE
+  BROKEN_RICE
+  BRAN
+  HUSK
+  WASTAGE
+}
+
+model ProductionBatch {
+  id                  String             @id @default(uuid())
+  batchNumber         String             @unique @db.VarChar(50)
+  warehouseId         String
+  warehouse           Warehouse          @relation(fields: [warehouseId], references: [id])
+  startDate           DateTime
+  endDate             DateTime?
+  status              ProductionStatus   @default(PLANNED)
+  totalInputWeightKg   Decimal            @default(0.0000) @db.Decimal(18, 4)
+  totalOutputWeightKg  Decimal            @default(0.0000) @db.Decimal(18, 4)
+  yieldPercentage      Decimal            @default(0.0000) @db.Decimal(6, 2)
+  totalInputCost       Decimal            @default(0.0000) @db.Decimal(18, 4)
+  processingLaborCost  Decimal            @default(0.0000) @db.Decimal(18, 4)
+  electricityPowerCost Decimal            @default(0.0000) @db.Decimal(18, 4)
+  otherMillingCost     Decimal            @default(0.0000) @db.Decimal(18, 4)
+  totalProcessingCost  Decimal            @default(0.0000) @db.Decimal(18, 4)
+  totalOutputValuation Decimal            @default(0.0000) @db.Decimal(18, 4)
+  netBatchProfit       Decimal            @default(0.0000) @db.Decimal(18, 4)
+  headRiceWeightKg     Decimal            @default(0.0000) @db.Decimal(18, 4)
+  brokenRiceWeightKg   Decimal            @default(0.0000) @db.Decimal(18, 4)
+  branWeightKg         Decimal            @default(0.0000) @db.Decimal(18, 4)
+  huskWeightKg         Decimal            @default(0.0000) @db.Decimal(18, 4)
+  wastageWeightKg      Decimal            @default(0.0000) @db.Decimal(18, 4)
+  headRiceYieldPct     Decimal            @default(0.0000) @db.Decimal(6, 2)
+  notes                String?            @db.Text
+  inputs              ProductionInput[]
+  outputs             ProductionOutput[]
+  createdById         String?
+  createdBy           User?              @relation("UserBatches", fields: [createdById], references: [id])
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([warehouseId])
+  @@index([status])
+}
+
+model ProductionInput {
+  id            String          @id @default(uuid())
+  batchId       String
+  batch         ProductionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  productId     String
+  product       RiceProduct     @relation(fields: [productId], references: [id])
+  bagCount      Int             @default(0)
+  weightKg      Decimal         @db.Decimal(18, 4)
+  unitCostPerKg Decimal         @db.Decimal(18, 4)
+  totalCost     Decimal         @db.Decimal(18, 4)
+
+  @@index([batchId])
+}
+
+model ProductionOutput {
+  id            String          @id @default(uuid())
+  batchId       String
+  batch         ProductionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  productId     String
+  product       RiceProduct     @relation(fields: [productId], references: [id])
+  outputType    OutputType
+  bagCount      Int             @default(0)
+  weightKg      Decimal         @db.Decimal(18, 4)
+  unitCostPerKg Decimal         @db.Decimal(18, 4)
+  totalCost     Decimal         @db.Decimal(18, 4)
+
+  @@index([batchId])
+}
+
+// =========================================================================
+// 11. COMMISSIONS & ARTHI BROKERAGE
+// =========================================================================
+
+enum CommissionStatus {
+  PENDING
+  PAID
+}
+
+model Commission {
+  id               String           @id @default(uuid())
+  commissionNumber String           @unique @db.VarChar(50)
+  purchaseId       String
+  purchase         Purchase         @relation(fields: [purchaseId], references: [id])
+  supplierId       String           // Arthi / Agent
+  supplier         Supplier         @relation(fields: [supplierId], references: [id])
+  ratePercent      Decimal          @db.Decimal(5, 2) // e.g. 1.50%
+  commissionAmount Decimal          @db.Decimal(18, 4)
+  status           CommissionStatus @default(PENDING)
+  notes            String?          @db.Text
+  createdAt        DateTime         @default(now())
+
+  @@index([purchaseId])
+  @@index([supplierId])
+}
+
+// =========================================================================
+// 12. ENTERPRISE COMPANY SETTINGS
+// =========================================================================
+
+model CompanySettings {
+  id                     String   @id @default(uuid())
+  companyName            String   @default("AL ARAB RICE TRADERS") @db.VarChar(150)
+  businessType           String   @default("Rice Millers, Commission Agents & Exporters") @db.VarChar(150)
+  address                String   @default("G.T. Road, Kamoke, Gujranwala, Pakistan") @db.Text
+  phone                  String   @default("+92-55-1122334") @db.VarChar(50)
+  email                  String   @default("info@alarabricetraders.com") @db.VarChar(100)
+  taxNumber              String   @default("1849204-7") @db.VarChar(50)
+  currency               String   @default("PKR") @db.VarChar(10)
+  defaultMoistureBasePct Decimal  @default(14.00) @db.Decimal(5, 2)
+  standardMaundKg        Decimal  @default(40.0000) @db.Decimal(18, 4)
+  allowNegativeInventory Boolean  @default(false)
+  receiptPrinterType     String   @default("ESC_POS") @db.VarChar(30)
+  thermalPrinterWidth    Int      @default(80) // 80mm
+  termsAndConditions     String?  @db.Text
+  enableMilling          Boolean  @default(true)
+  enableCommission       Boolean  @default(true)
+  enableExport           Boolean  @default(true)
+  enableMultiWarehouse   Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+// =========================================================================
+// 13. ADVANCED COMMISSIONS & ARTHI BROKERAGE
+// =========================================================================
+
+enum AgentCommissionType {
+  PERCENTAGE
+  PER_BAG
+  PER_KG
+}
+
+enum CommTransactionStatus {
+  ACCRUED
+  PAID
+  CANCELLED
+}
+
+model CommissionAgent {
+  id             String                  @id @default(uuid())
+  code           String                  @unique @db.VarChar(50)
+  name           String                  @db.VarChar(150)
+  phone          String?                 @db.VarChar(50)
+  mandiCity      String?                 @db.VarChar(100)
+  commissionType AgentCommissionType     @default(PERCENTAGE)
+  defaultRate    Decimal                 @default(1.0000) @db.Decimal(18, 4)
+  currentBalance Decimal                 @default(0.0000) @db.Decimal(18, 4)
+  notes          String?                 @db.Text
+  isActive       Boolean                 @default(true)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  transactions   CommissionTransaction[]
+  payments       CommissionPayment[]
+}
+
+model CommissionTransaction {
+  id                String                @id @default(uuid())
+  transactionNumber String                @unique @db.VarChar(50)
+  agentId           String
+  agent             CommissionAgent       @relation(fields: [agentId], references: [id])
+  transactionDate   DateTime              @default(now())
+  referenceType     String                @db.VarChar(50) // SALE, DAILY_SALES, PURCHASE
+  referenceNo       String                @db.VarChar(100)
+  baseAmount        Decimal               @default(0.0000) @db.Decimal(18, 4)
+  bagCount          Int                   @default(0)
+  weightKg          Decimal               @default(0.0000) @db.Decimal(18, 4)
+  rateType          AgentCommissionType   @default(PERCENTAGE)
+  rateValue         Decimal               @default(0.0000) @db.Decimal(18, 4)
+  commissionAmount  Decimal               @db.Decimal(18, 4)
+  status            CommTransactionStatus @default(ACCRUED)
+  notes             String?               @db.Text
+  createdAt         DateTime              @default(now())
+
+  @@index([agentId])
+  @@index([referenceNo])
+}
+
+model CommissionPayment {
+  id              String          @id @default(uuid())
+  paymentNumber   String          @unique @db.VarChar(50)
+  agentId         String
+  agent           CommissionAgent @relation(fields: [agentId], references: [id])
+  paymentDate     DateTime        @default(now())
+  amount          Decimal         @db.Decimal(18, 4)
+  paymentMethod   PaymentType     @default(CASH)
+  cashAccountId   String?
+  cashAccount     CashAccount?    @relation("AgentPaymentCash", fields: [cashAccountId], references: [id])
+  bankAccountId   String?
+  bankAccount     BankAccount?    @relation("AgentPaymentBank", fields: [bankAccountId], references: [id])
+  referenceNumber String?         @db.VarChar(100)
+  notes           String?         @db.Text
+  status          String          @default("POSTED") @db.VarChar(20)
+  reversalRef     String?         @db.VarChar(50)
+  createdAt       DateTime        @default(now())
+
+  @@index([agentId])
+}
+
+// =========================================================================
+// 14. INTERNATIONAL RICE EXPORT & SHIPPING
+// =========================================================================
+
+enum ExportInvoiceStatus {
+  DRAFT
+  CONFIRMED
+  SHIPPED
+  REALIZED
+  CANCELLED
+}
+
+enum Incoterm {
+  FOB
+  CIF
+  CFR
+}
+
+model ExportCustomer {
+  id                   String          @id @default(uuid())
+  customerCode         String          @unique @db.VarChar(50)
+  companyName          String          @db.VarChar(150)
+  country              String          @db.VarChar(100)
+  contactPerson        String?         @db.VarChar(100)
+  email                String?         @db.VarChar(100)
+  phone                String?         @db.VarChar(50)
+  address              String?         @db.Text
+  preferredCurrency    String          @default("USD") @db.VarChar(10)
+  destinationPort      String?         @db.VarChar(100)
+  paymentTerms         String?         @db.VarChar(100) // e.g. 100% LC at sight, 30% Advance TT
+  taxId                String?         @db.VarChar(50)
+  currentReceivableFcy Decimal         @default(0.0000) @db.Decimal(18, 4)
+  currentReceivablePkr Decimal         @default(0.0000) @db.Decimal(18, 4)
+  notes                String?         @db.Text
+  isActive             Boolean         @default(true)
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  invoices             ExportInvoice[]
+  payments             ExportPayment[]
+}
+
+model ExportInvoice {
+  id                 String              @id @default(uuid())
+  invoiceNumber      String              @unique @db.VarChar(50)
+  exportCustomerId   String
+  exportCustomer     ExportCustomer      @relation(fields: [exportCustomerId], references: [id])
+  invoiceDate        DateTime            @default(now())
+  currency           String              @default("USD") @db.VarChar(10)
+  exchangeRate       Decimal             @default(280.0000) @db.Decimal(18, 4) // PKR per FCY
+  contractNo         String?             @db.VarChar(100)
+  paymentTerms       String?             @db.VarChar(100)
+  incoterm           Incoterm            @default(FOB)
+  portOfLoading      String              @default("Karachi Port, Pakistan") @db.VarChar(100)
+  portOfDischarge    String?             @db.VarChar(100)
+  vesselName         String?             @db.VarChar(100)
+  containerNumber    String?             @db.VarChar(100)
+  blNumber           String?             @db.VarChar(100)
+  shippingLine       String?             @db.VarChar(100)
+  oceanFreightCost   Decimal             @default(0.0000) @db.Decimal(18, 4)
+  portHandlingCost   Decimal             @default(0.0000) @db.Decimal(18, 4)
+  otherShippingCosts Decimal             @default(0.0000) @db.Decimal(18, 4)
+  totalFreightCostPkr Decimal            @default(0.0000) @db.Decimal(18, 4)
+  totalFcyAmount     Decimal             @default(0.0000) @db.Decimal(18, 4)
+  totalPkrAmount     Decimal             @default(0.0000) @db.Decimal(18, 4)
+  paidFcyAmount      Decimal             @default(0.0000) @db.Decimal(18, 4)
+  paidPkrAmount      Decimal             @default(0.0000) @db.Decimal(18, 4)
+  status             ExportInvoiceStatus @default(DRAFT)
+  notes              String?             @db.Text
+  items              ExportInvoiceItem[]
+  payments           ExportPayment[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([exportCustomerId])
+  @@index([status])
+}
+
+model ExportInvoiceItem {
+  id            String        @id @default(uuid())
+  invoiceId     String
+  invoice       ExportInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId     String
+  product       RiceProduct   @relation(fields: [productId], references: [id])
+  bagType       String        @default("PP Non-Woven Bag") @db.VarChar(50)
+  bagWeightKg   Decimal       @default(40.0000) @db.Decimal(18, 4)
+  bagCount      Int           @default(0)
+  totalWeightKg Decimal       @db.Decimal(18, 4)
+  totalWeightMt Decimal       @db.Decimal(18, 4)
+  ratePerMtFcy  Decimal       @db.Decimal(18, 4)
+  lineTotalFcy  Decimal       @db.Decimal(18, 4)
+  lineTotalPkr  Decimal       @db.Decimal(18, 4)
+  grainLengthMm Decimal?      @db.Decimal(5, 2)
+  moisturePct   Decimal?      @db.Decimal(5, 2)
+  brokenPct     Decimal?      @db.Decimal(5, 2)
+  notes         String?       @db.Text
+
+  @@index([invoiceId])
+  @@index([productId])
+}
+
+model ExportPayment {
+  id                   String         @id @default(uuid())
+  paymentNumber        String         @unique @db.VarChar(50)
+  exportInvoiceId      String
+  exportInvoice        ExportInvoice  @relation(fields: [exportInvoiceId], references: [id])
+  exportCustomerId     String
+  exportCustomer       ExportCustomer @relation(fields: [exportCustomerId], references: [id])
+  paymentDate          DateTime       @default(now())
+  realizationDate      DateTime       @default(now())
+  currency             String         @default("USD") @db.VarChar(10)
+  amountFcy            Decimal        @db.Decimal(18, 4)
+  realizedExchangeRate Decimal        @db.Decimal(18, 4)
+  amountPkr            Decimal        @db.Decimal(18, 4)
+  bankChargesPkr       Decimal        @default(0.0000) @db.Decimal(18, 4)
+  exchangeGainLossPkr  Decimal        @default(0.0000) @db.Decimal(18, 4)
+  bankAccountId        String?
+  bankAccount          BankAccount?   @relation("ExportPaymentBank", fields: [bankAccountId], references: [id])
+  bankRefNo            String?        @db.VarChar(100)
+  notes                String?        @db.Text
+  status               String         @default("POSTED") @db.VarChar(20)
+  createdAt            DateTime       @default(now())
+
+  @@index([exportInvoiceId])
+  @@index([exportCustomerId])
+}
+
+// =========================================================================
+// 15. INTER-WAREHOUSE TRANSFERS & GODOWN LOGISTICS
+// =========================================================================
+
+enum TransferStatus {
+  PENDING_APPROVAL
+  IN_TRANSIT
+  RECEIVED
+  REJECTED
+}
+
+model WarehouseTransfer {
+  id                  String                  @id @default(uuid())
+  transferNumber      String                  @unique @db.VarChar(50)
+  transferDate        DateTime                @default(now())
+  fromWarehouseId     String
+  fromWarehouse       Warehouse               @relation("TransferSourceWarehouse", fields: [fromWarehouseId], references: [id])
+  toWarehouseId       String
+  toWarehouse         Warehouse               @relation("TransferDestinationWarehouse", fields: [toWarehouseId], references: [id])
+  driverName          String?                 @db.VarChar(100)
+  vehicleNumber       String?                 @db.VarChar(50)
+  biltyNumber         String?                 @db.VarChar(100)
+  status              TransferStatus          @default(PENDING_APPROVAL)
+  totalBags           Int                     @default(0)
+  totalWeightKg       Decimal                 @default(0.0000) @db.Decimal(18, 4)
+  transitLossBags     Int                     @default(0)
+  transitLossWeightKg Decimal                 @default(0.0000) @db.Decimal(18, 4)
+  approvedById        String?
+  approvedAt          DateTime?
+  receivedById        String?
+  receivedAt          DateTime?
+  notes               String?                 @db.Text
+  items               WarehouseTransferItem[]
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
+  @@index([status])
+}
+
+model WarehouseTransferItem {
+  id               String            @id @default(uuid())
+  transferId       String
+  transfer         WarehouseTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  productId        String
+  product          RiceProduct       @relation(fields: [productId], references: [id])
+  sentBags         Int               @default(0)
+  sentWeightKg     Decimal           @db.Decimal(18, 4)
+  receivedBags     Int               @default(0)
+  receivedWeightKg Decimal           @db.Decimal(18, 4)
+  shortageBags     Int               @default(0)
+  shortageWeightKg Decimal           @default(0.0000) @db.Decimal(18, 4)
+
+  @@index([transferId])
+  @@index([productId])
+}

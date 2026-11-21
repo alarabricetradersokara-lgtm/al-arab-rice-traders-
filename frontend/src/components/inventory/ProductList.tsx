@@ -1,0 +1,187 @@
+import React, { useState } from 'react';
+import { RiceProduct, RiceCategory } from '../../types/inventory';
+import { Button } from '../common/Button';
+import { Badge } from '../common/Badge';
+import { Search, Plus, Sparkles, Filter } from 'lucide-react';
+
+interface ProductListProps {
+  products: RiceProduct[];
+  categories: RiceCategory[];
+  isLoading: boolean;
+  onOpenCreateModal: () => void;
+  onSelectProductMovements: (productId: string) => void;
+}
+
+export const ProductList: React.FC<ProductListProps> = ({
+  products,
+  categories,
+  isLoading,
+  onOpenCreateModal,
+  onSelectProductMovements,
+}) => {
+  const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+
+  const filtered = products.filter((p) => {
+    const matchesSearch =
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.code.toLowerCase().includes(search.toLowerCase()) ||
+      p.variety.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = selectedCategory ? p.category?.id === selectedCategory : true;
+    return matchesSearch && matchesCategory;
+  });
+
+  const formatGrade = (grade: string) => {
+    return grade.replace('_', ' ');
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Top Action Bar */}
+      <div className="bg-white p-4 rounded-xl border border-[#E4EAE5] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 flex-1">
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 text-[#718078] absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search by variety name, SKU, or category..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-[#F5F7F5] border border-[#E4EAE5] rounded-lg pl-10 pr-4 py-2 text-sm text-[#172B25] focus:outline-hidden focus:ring-2 focus:ring-[#087A55]/30 focus:border-[#087A55]"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-[#718078]" />
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="bg-[#F5F7F5] border border-[#E4EAE5] rounded-lg px-3 py-2 text-sm text-[#172B25] focus:outline-hidden focus:ring-2 focus:ring-[#087A55]/30 cursor-pointer"
+            >
+              <option value="">All Categories</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="text-xs text-[#718078] font-medium hidden sm:block">
+            Showing <span className="font-bold text-[#172B25]">{filtered.length}</span> varieties
+          </div>
+          <Button
+            onClick={onOpenCreateModal}
+            leftIcon={<Plus className="w-4 h-4" />}
+            variant="primary"
+          >
+            Register Rice Variety
+          </Button>
+        </div>
+      </div>
+
+      {/* Product Catalog Table */}
+      <div className="bg-white rounded-xl border border-[#E4EAE5] shadow-xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-[#F5F7F5] border-b border-[#E4EAE5] text-[11px] font-bold text-[#718078] uppercase tracking-wider">
+                <th className="py-3.5 px-4">Variety & Code</th>
+                <th className="py-3.5 px-4">Category</th>
+                <th className="py-3.5 px-4">Quality Grade</th>
+                <th className="py-3.5 px-4 text-center">Bag Weight</th>
+                <th className="py-3.5 px-4 text-right">Cost Rate / Kg</th>
+                <th className="py-3.5 px-4 text-right">Sale Rate / Kg</th>
+                <th className="py-3.5 px-4 text-right">Available Stock</th>
+                <th className="py-3.5 px-4 text-center">Status</th>
+                <th className="py-3.5 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E4EAE5] text-sm">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center text-[#718078]">
+                    Loading registered rice products from database...
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center text-[#718078]">
+                    No rice products match the selected criteria.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((product) => (
+                  <tr
+                    key={product.id}
+                    className="hover:bg-[#F5F7F5]/70 transition-colors group"
+                  >
+                    <td className="py-3.5 px-4">
+                      <div className="font-bold text-[#172B25] group-hover:text-[#087A55] transition-colors">
+                        {product.name}
+                      </div>
+                      <div className="text-xs font-mono text-[#718078]">{product.code}</div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="text-xs font-medium text-[#172B25]">
+                        {product.category?.name}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <Badge variant="emerald" size="sm">
+                        {formatGrade(product.grade)}
+                      </Badge>
+                    </td>
+                    <td className="py-3.5 px-4 text-center font-mono-num font-medium text-[#172B25]">
+                      {product.defaultBagWeightKg} Kg
+                    </td>
+                    <td className="py-3.5 px-4 text-right font-mono-num text-[#718078]">
+                      PKR {parseFloat(product.costPricePerKg as string).toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-4 text-right font-mono-num font-bold text-[#087A55]">
+                      PKR {parseFloat(product.salePricePerKg as string).toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="font-bold text-[#172B25] font-mono-num">
+                        {product.totalBags.toLocaleString()} Bags
+                      </div>
+                      <div className="text-xs text-[#718078] font-mono-num">
+                        {parseFloat(product.totalWeightKg).toLocaleString()} Kg ({product.totalMaunds} Mnds)
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 text-center">
+                      {product.isOutOfStock ? (
+                        <Badge variant="danger" size="sm">
+                          Out of Stock
+                        </Badge>
+                      ) : product.isLowStock ? (
+                        <Badge variant="warning" size="sm">
+                          Low Stock
+                        </Badge>
+                      ) : (
+                        <Badge variant="emerald" size="sm">
+                          Healthy Stock
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onSelectProductMovements(product.id)}
+                      >
+                        Ledger
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
