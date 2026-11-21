@@ -2,10 +2,13 @@
   "name": "al-arab-rice-traders",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "scripts": {
-    "build": "npm run build --prefix backend && npm run build --prefix frontend",
-    "vercel-build": "prisma generate --schema=backend/prisma/schema.prisma && npm run build --prefix backend && npm run build --prefix frontend",
-    "start": "npm run start --prefix backend"
+    "build": "prisma generate --schema=backend/prisma/schema.prisma && npm run build --workspace=backend && npm run build --workspace=frontend",
+    "start": "node backend/dist/server.js"
   },
   "dependencies": {
     "@neon/config": "^1.14.6",

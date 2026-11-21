@@ -49,8 +49,9 @@ export const createApp = (): Express => {
     });
   });
 
-  // Mount API V1 routes
+  // Mount API V1 routes (support both /api and serverless stripped prefixes)
   app.use('/api', routes);
+  app.use('/', routes);
 
   // 404 Route Handler
   app.use((req: Request, res: Response, next: NextFunction) => {
