@@ -40,21 +40,21 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     setIsLoading(true);
     try {
       await authService.changePassword(currentPassword, newPassword);
-      onSuccessToast('Password updated successfully! An audit record has been logged.');
+      onSuccessToast('پاس ورڈ کامیابی سے تبدیل ہو گیا! نیا پاس ورڈ لاگو ہے۔');
       onClose();
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
-      setError(err.message || 'Failed to update password');
+      setError(err.response?.data?.message || err.message || 'پاس ورڈ تبدیل کرنے میں خرابی ہوئی۔ موجودہ پاس ورڈ چیک کریں۔');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-[#E4EAE5]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-[#E4EAE5]">
         {/* Header */}
         <div className="bg-[#087A55] text-white px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -62,8 +62,8 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
               <Lock className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base">Change Operator Password</h3>
-              <p className="text-xs text-emerald-100">Update your secure login credentials</p>
+              <h3 className="font-bold text-base">پاس ورڈ تبدیل کریں</h3>
+              <p className="text-xs text-emerald-100">Change Operator Password</p>
             </div>
           </div>
           <button
@@ -85,8 +85,8 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
 
           {/* Current Password */}
           <div>
-            <label className="block text-xs font-bold text-[#172B25] uppercase tracking-wider mb-1">
-              Current Password
+            <label className="block text-xs font-bold text-[#172B25] mb-1">
+              موجودہ پاس ورڈ (Current Password)
             </label>
             <div className="relative">
               <input
@@ -94,7 +94,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                 required
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Enter current password"
+                placeholder="موجودہ پاس ورڈ درج کریں"
                 className="w-full text-sm px-3.5 py-2.5 bg-[#F5F7F5] border border-[#E4EAE5] rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-[#087A55]/30 pr-10"
               />
               <button
@@ -109,8 +109,8 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
 
           {/* New Password */}
           <div>
-            <label className="block text-xs font-bold text-[#172B25] uppercase tracking-wider mb-1">
-              New Password
+            <label className="block text-xs font-bold text-[#172B25] mb-1">
+              نیا پاس ورڈ (New Password)
             </label>
             <div className="relative">
               <input
@@ -118,7 +118,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                 required
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="At least 6 characters"
+                placeholder="کم از کم 6 حروف یا ہندسے"
                 className="w-full text-sm px-3.5 py-2.5 bg-[#F5F7F5] border border-[#E4EAE5] rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-[#087A55]/30 pr-10"
               />
               <button
@@ -133,15 +133,15 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
 
           {/* Confirm New Password */}
           <div>
-            <label className="block text-xs font-bold text-[#172B25] uppercase tracking-wider mb-1">
-              Confirm New Password
+            <label className="block text-xs font-bold text-[#172B25] mb-1">
+              نئے پاس ورڈ کی تصدیق (Confirm New Password)
             </label>
             <input
               type={showNew ? 'text' : 'password'}
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Re-enter new password"
+              placeholder="نیا پاس ورڈ دوبارہ درج کریں"
               className="w-full text-sm px-3.5 py-2.5 bg-[#F5F7F5] border border-[#E4EAE5] rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-[#087A55]/30"
             />
           </div>
@@ -153,18 +153,18 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
               disabled={isLoading}
               className="px-4 py-2 text-xs font-bold text-[#718078] hover:bg-[#F5F7F5] rounded-xl transition-colors cursor-pointer"
             >
-              Cancel
+              منسوخ کریں
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="px-5 py-2 bg-[#087A55] hover:bg-[#064E3B] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-2"
+              className="px-5 py-2.5 bg-[#087A55] hover:bg-[#064E3B] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-2"
             >
               {isLoading ? (
-                <span>Updating...</span>
+                <span>تبدیل ہو رہا ہے...</span>
               ) : (
                 <>
-                  <CheckCircle2 className="w-4 h-4" /> Update Password
+                  <CheckCircle2 className="w-4 h-4" /> پاس ورڈ تبدیل کریں
                 </>
               )}
             </button>

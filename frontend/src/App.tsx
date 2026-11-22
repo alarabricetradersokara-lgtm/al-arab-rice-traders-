@@ -39,7 +39,8 @@ import { BusinessReportsScreen } from './components/reports/BusinessReportsScree
 import { UserManagementScreen } from './components/admin/UserManagementScreen';
 import { AuditLogsScreen } from './components/admin/AuditLogsScreen';
 import { ChangePasswordModal } from './components/auth/ChangePasswordModal';
-import { AuthProvider } from './context/AuthContext';
+import { LoginScreen } from './components/auth/LoginScreen';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { inventoryService } from './services/inventory.service';
 import { dailySalesService } from './services/dailySales.service';
@@ -62,6 +63,7 @@ import type { CompanySettings } from './types/advanced';
 import { CheckCircle2, X } from 'lucide-react';
 
 function AppContent() {
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('');
@@ -209,14 +211,16 @@ function AppContent() {
     }
   }, []);
 
-  // Initial Load
+  // Initial Load (Only when user is authenticated)
   useEffect(() => {
-    fetchRegistries();
-    fetchProducts();
-    fetchStockOverview(selectedWarehouseId);
-    fetchMovements();
-    fetchAlerts();
-  }, [fetchRegistries, fetchProducts, fetchStockOverview, fetchMovements, fetchAlerts, selectedWarehouseId]);
+    if (isAuthenticated) {
+      fetchRegistries();
+      fetchProducts();
+      fetchStockOverview(selectedWarehouseId);
+      fetchMovements();
+      fetchAlerts();
+    }
+  }, [isAuthenticated, fetchRegistries, fetchProducts, fetchStockOverview, fetchMovements, fetchAlerts, selectedWarehouseId]);
 
   const handleWarehouseFilterChange = (whId: string) => {
     setSelectedWarehouseId(whId);
@@ -224,11 +228,13 @@ function AppContent() {
   };
 
   const handleRefreshAll = () => {
-    fetchRegistries();
-    fetchProducts();
-    fetchStockOverview(selectedWarehouseId);
-    fetchMovements();
-    fetchAlerts();
+    if (isAuthenticated) {
+      fetchRegistries();
+      fetchProducts();
+      fetchStockOverview(selectedWarehouseId);
+      fetchMovements();
+      fetchAlerts();
+    }
   };
 
   const handleViewLedgerForProduct = (prodId: string) => {
@@ -247,6 +253,24 @@ function AppContent() {
       showToast('Failed to load report voucher');
     }
   };
+
+  // If verifying authentication session
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 text-white">
+        <div className="w-16 h-16 rounded-3xl bg-emerald-700 flex items-center justify-center text-2xl font-black mb-4 animate-pulse shadow-xl shadow-emerald-900/50">
+          AR
+        </div>
+        <h2 className="text-xl font-bold tracking-tight text-white">العرب رائز ٹریڈرز</h2>
+        <p className="text-xs text-emerald-400 mt-1 font-medium">سیکیورٹی تصدیق جاری ہے...</p>
+      </div>
+    );
+  }
+
+  // If not authenticated, require password login
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">

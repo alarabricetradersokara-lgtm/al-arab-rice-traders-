@@ -36,8 +36,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     },
     {
       id: 'parties' as NavTab,
-      label: 'ڈیجی کھاتہ',
-      sublabel: 'DigiKhata',
+      label: 'کھاتہ جات',
+      sublabel: 'Khata',
       icon: <Users className="w-5 h-5" />,
     },
     {

@@ -18,8 +18,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Quick credentials for test/demo switching across the 5 mandated roles
-const DEMO_OPERATOR_CREDENTIALS: Record<string, { u: string; p: string }> = {
+const OPERATOR_CREDENTIALS: Record<string, { u: string; p: string }> = {
   admin: { u: 'admin', p: 'Admin@12345' },
   accountant: { u: 'accountant', p: 'AlArab@2026' },
   stock_mgr: { u: 'stock_mgr', p: 'AlArab@2026' },
@@ -32,7 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Initialize auth state
+  // Initialize and verify secure auth session
   useEffect(() => {
     const initAuth = async () => {
       const savedToken = getStoredToken();
@@ -42,17 +41,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           setToken(savedToken);
           setUser(JSON.parse(savedUser));
-          // Refresh user profile in background
+          // Verify with live backend session check
           const freshUser = await authService.getCurrentUser();
           setUser(freshUser);
           setStoredAuth(savedToken, freshUser);
         } catch (e) {
-          console.warn('Cached session expired or invalid, auto-logging in as admin demo baseline...');
-          await loginWithDefaults('admin');
+          console.warn('Stored token is expired or invalid. Requiring password authentication.');
+          clearStoredAuth();
+          setUser(null);
+          setToken(null);
         }
       } else {
-        // Auto initialize as default Admin operator for seamless immediate access
-        await loginWithDefaults('admin');
+        // No saved session: user must log in
+        clearStoredAuth();
+        setUser(null);
+        setToken(null);
       }
       setIsLoading(false);
     };
@@ -60,34 +63,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
-  const loginWithDefaults = async (roleKey: 'admin' | 'accountant' | 'stock_mgr' | 'sales_op' | 'viewer') => {
-    try {
-      const creds = DEMO_OPERATOR_CREDENTIALS[roleKey];
-      const res = await authService.login(creds.u, creds.p);
-      setToken(res.tokens.accessToken);
-      setStoredAuth(res.tokens.accessToken, res.user);
-      setUser({
-        ...res.user,
-        roleName: res.user.role as RoleName,
-        roleId: '',
-        isActive: true,
-      });
-    } catch (err) {
-      console.error('Failed to initialize operator credentials:', err);
-    }
-  };
-
   const login = async (username: string, password: string) => {
     setIsLoading(true);
     try {
       const res = await authService.login(username, password);
-      setToken(res.tokens.accessToken);
-      setUser({
+      const accessToken = res.tokens.accessToken;
+      const loggedUser = {
         ...res.user,
-        roleName: res.user.role,
+        roleName: res.user.role as RoleName,
         roleId: '',
         isActive: true,
-      });
+      };
+
+      setToken(accessToken);
+      setUser(loggedUser);
+      setStoredAuth(accessToken, loggedUser);
     } finally {
       setIsLoading(false);
     }
@@ -102,27 +92,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const switchOperator = async (roleKey: 'admin' | 'accountant' | 'stock_mgr' | 'sales_op' | 'viewer') => {
     setIsLoading(true);
     try {
-      await loginWithDefaults(roleKey);
+      const creds = OPERATOR_CREDENTIALS[roleKey];
+      if (creds) {
+        await login(creds.u, creds.p);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   const isSuperAdminOrAdmin =
-    !user ||
     user?.roleName === 'ADMIN' ||
     user?.roleName === 'SUPER_ADMIN' ||
     (user as any)?.role === 'ADMIN' ||
     (user as any)?.role === 'SUPER_ADMIN';
 
   const hasRole = (...roles: RoleName[]): boolean => {
-    if (!user) return true;
+    if (!user) return false;
     if (isSuperAdminOrAdmin && roles.includes('ADMIN' as RoleName)) return true;
     return roles.includes(user.roleName);
   };
 
   const hasPermission = (permissionCode: string): boolean => {
-    if (!user || isSuperAdminOrAdmin) return true;
+    if (!user) return false;
+    if (isSuperAdminOrAdmin) return true;
     return user.permissions?.includes(permissionCode) || false;
   };
 
@@ -131,7 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         token,
-        isAuthenticated: !!user,
+        isAuthenticated: !!user && !!token,
         isLoading,
         login,
         logout,

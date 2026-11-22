@@ -97,10 +97,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     },
     {
       id: 'parties' as NavTab,
-      labelUrdu: 'ڈیجی کھاتہ',
-      labelEn: 'Customers & Suppliers Khata',
+      labelUrdu: 'کھاتہ رجسٹر',
+      labelEn: 'Parties Khatabook',
       icon: <Users className="w-4 h-4" />,
-      badge: 'کھاتہ جات',
+      badge: 'کھاتہ',
       badgeColor: 'bg-slate-100 text-slate-700 border-slate-200',
       enabled: hasPermission('customers:view'),
     },

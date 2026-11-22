@@ -133,7 +133,7 @@ export const PartyManagementScreen: React.FC<PartyManagementScreenProps> = ({
     if (clean.startsWith('0')) clean = '92' + clean.slice(1);
     const amt = Number(balance).toLocaleString();
     const isRec = type === 'CUSTOMER';
-    const text = `السلام علیکم جناب ${name} صاحب!\nالعرب رائز ٹریڈرز (AL ARAB RICE TRADERS) کی جانب سے آپ کا ڈیجی کھاتہ بیلنس درج ذیل ہے:\n\n*موجودہ بقایا: PKR ${amt}* (${isRec ? 'آپ نے ادا کرنی ہے / لینا ہے' : 'ہم نے ادا کرنی ہے / دینا ہے'})\n\nبرائے رابطہ: 055-612-8899 • غلہ منڈی کامونکی`;
+    const text = `السلام علیکم جناب ${name} صاحب!\nالعرب رائز ٹریڈرز (AL ARAB RICE TRADERS) کی جانب سے آپ کا کھاتہ بیلنس درج ذیل ہے:\n\n*موجودہ بقایا: PKR ${amt}* (${isRec ? 'آپ نے ادا کرنی ہے / لینا ہے' : 'ہم نے ادا کرنی ہے / دینا ہے'})\n\nمرکزی دکان: اناج مارکیٹ، مانسہرہ | رابطہ: 0300-1234567`;
     window.open(`https://wa.me/${clean}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -167,10 +167,10 @@ export const PartyManagementScreen: React.FC<PartyManagementScreenProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-black text-[#172B25] flex items-center gap-2">
-              <span className="text-[#087A55]">📒</span> ڈیجی کھاتہ رجسٹر (Al Arab DigiKhata)
+              <span className="text-[#087A55]">📒</span> کھاتہ رجسٹر (Parties Khatabook)
             </h1>
             <span className="text-xs font-bold bg-emerald-100 text-[#087A55] px-2.5 py-0.5 rounded-full border border-emerald-200">
-              ڈیجی کھاتہ موڈ
+              کھاتہ موڈ
             </span>
           </div>
           <p className="text-xs text-[#718078] mt-1">
@@ -190,7 +190,7 @@ export const PartyManagementScreen: React.FC<PartyManagementScreenProps> = ({
               }`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
-              <span>ڈیجی کارڈز</span>
+              <span>کھاتہ کارڈز</span>
             </button>
             <button
               onClick={() => setViewMode('TABLE')}
