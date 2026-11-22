@@ -100,36 +100,16 @@ export const StockOverviewMatrix: React.FC<StockOverviewMatrixProps> = ({
         />
       </div>
 
-      {/* 2. Warehouse Filter Tabs */}
+      {/* 2. Shop Location Header & Search */}
       <div className="bg-white p-3 rounded-xl border border-[#E4EAE5] shadow-xs flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          <button
-            onClick={() => onSelectWarehouse('')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer shrink-0 ${
-              selectedWarehouseId === ''
-                ? 'bg-[#087A55] text-white shadow-xs'
-                : 'text-[#718078] hover:bg-[#F5F7F5] hover:text-[#172B25]'
-            }`}
-          >
-            All Godowns ({stocks.length})
-          </button>
-          {warehouses.map((w) => {
-            const count = stocks.filter((s) => s.warehouse.id === w.id).length;
-            const isSelected = selectedWarehouseId === w.id;
-            return (
-              <button
-                key={w.id}
-                onClick={() => onSelectWarehouse(w.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer shrink-0 ${
-                  isSelected
-                    ? 'bg-[#087A55] text-white shadow-xs'
-                    : 'text-[#718078] hover:bg-[#F5F7F5] hover:text-[#172B25]'
-                }`}
-              >
-                {w.name} ({count})
-              </button>
-            );
-          })}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 px-3.5 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 shadow-2xs">
+            <WarehouseIcon className="w-4 h-4 text-emerald-600" />
+            <span>مرکزی دکان - مانسہرہ (Main Shop - Mansehra)</span>
+            <span className="text-[10px] bg-emerald-200/60 text-emerald-900 px-2 py-0.5 rounded-full mr-1">
+              {stocks.length} ورائٹیز
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">

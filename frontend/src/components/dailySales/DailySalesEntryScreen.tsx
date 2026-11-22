@@ -88,7 +88,7 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
   const [productSearch, setProductSearch] = useState('');
 
   // Form State for Daily Sales (Mal Bika)
-  const [linesMap, setLinesMap] = useState<Record<string, { bagCount: number; weightKg: number; ratePerKg: number }>>({});
+  const [linesMap, setLinesMap] = useState<Record<string, { bagCount: number; looseKg: number; weightKg: number; ratePerKg: number }>>({});
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [commissionAmount, setCommissionAmount] = useState<number>(0);
   const [cashAmount, setCashAmount] = useState<number>(0);
@@ -101,6 +101,7 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
   const [purchaseSupplierId, setPurchaseSupplierId] = useState<string>('');
   const [purchaseProductId, setPurchaseProductId] = useState<string>('');
   const [purchaseBags, setPurchaseBags] = useState<number>(50);
+  const [purchaseLooseKg, setPurchaseLooseKg] = useState<number>(0);
   const [purchaseWeightKg, setPurchaseWeightKg] = useState<number>(2500);
   const [purchaseRate, setPurchaseRate] = useState<number>(250);
   const [purchasePaymentType, setPurchasePaymentType] = useState<'CASH' | 'CREDIT'>('CREDIT');
@@ -171,11 +172,18 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
       // Populate form from existing entry or initialize blank
       if (data.existingEntry) {
         const ent = data.existingEntry;
-        const newMap: Record<string, { bagCount: number; weightKg: number; ratePerKg: number }> = {};
+        const newMap: Record<string, { bagCount: number; looseKg: number; weightKg: number; ratePerKg: number }> = {};
         for (const l of ent.lines) {
+          const product = data.productsCatalog.find((p) => p.id === l.productId);
+          const bagWt = Number(product?.defaultBagWeightKg || 50);
+          const bags = l.bagCount || 0;
+          const totalWt = Number(l.weightKg);
+          const bagsWeight = bags * bagWt;
+          const loose = Math.max(0, totalWt - bagsWeight);
           newMap[l.productId] = {
-            bagCount: l.bagCount,
-            weightKg: Number(l.weightKg),
+            bagCount: bags,
+            looseKg: loose,
+            weightKg: totalWt,
             ratePerKg: Number(l.ratePerKg),
           };
         }
@@ -195,10 +203,11 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
         );
         setNotes(ent.notes || '');
       } else {
-        const newMap: Record<string, { bagCount: number; weightKg: number; ratePerKg: number }> = {};
+        const newMap: Record<string, { bagCount: number; looseKg: number; weightKg: number; ratePerKg: number }> = {};
         for (const p of data.productsCatalog) {
           newMap[p.id] = {
             bagCount: 0,
+            looseKg: 0,
             weightKg: 0,
             ratePerKg: p.salePricePerKg || 0,
           };
@@ -223,14 +232,32 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
   const handleBagCountChange = (productId: string, bags: number, defaultBagWeight: number) => {
     if (isConfirmed) return;
     setLinesMap((prev) => {
-      const cur = prev[productId] || { bagCount: 0, weightKg: 0, ratePerKg: 0 };
+      const cur = prev[productId] || { bagCount: 0, looseKg: 0, weightKg: 0, ratePerKg: 0 };
       const safeBags = Math.max(0, bags);
+      const loose = cur.looseKg || 0;
       return {
         ...prev,
         [productId]: {
           ...cur,
           bagCount: safeBags,
-          weightKg: safeBags * defaultBagWeight,
+          weightKg: (safeBags * defaultBagWeight) + loose,
+        },
+      };
+    });
+  };
+
+  const handleLooseKgChange = (productId: string, loose: number, defaultBagWeight: number) => {
+    if (isConfirmed) return;
+    setLinesMap((prev) => {
+      const cur = prev[productId] || { bagCount: 0, looseKg: 0, weightKg: 0, ratePerKg: 0 };
+      const safeLoose = Math.max(0, loose);
+      const bags = cur.bagCount || 0;
+      return {
+        ...prev,
+        [productId]: {
+          ...cur,
+          looseKg: safeLoose,
+          weightKg: (bags * defaultBagWeight) + safeLoose,
         },
       };
     });
@@ -239,7 +266,7 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
   const handleWeightChange = (productId: string, weight: number) => {
     if (isConfirmed) return;
     setLinesMap((prev) => {
-      const cur = prev[productId] || { bagCount: 0, weightKg: 0, ratePerKg: 0 };
+      const cur = prev[productId] || { bagCount: 0, looseKg: 0, weightKg: 0, ratePerKg: 0 };
       return {
         ...prev,
         [productId]: {
@@ -364,8 +391,8 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
 
   // Handle Quick Add Inward Purchase (Mal Aya)
   const handleAddQuickPurchase = async () => {
-    if (!purchaseSupplierId || !purchaseProductId || purchaseBags <= 0 || purchaseWeightKg <= 0 || purchaseRate <= 0) {
-      setError('براہ کرم سپلائر، چاول کی ورائٹی، بوریاں، وزن اور ریٹ درست درج کریں۔');
+    if (!purchaseSupplierId || !purchaseProductId || (purchaseBags <= 0 && purchaseLooseKg <= 0) || purchaseWeightKg <= 0 || purchaseRate <= 0) {
+      setError('براہ کرم سپلائر، چاول کی ورائٹی، بوریاں یا کھلے کلو، وزن اور ریٹ درست درج کریں۔');
       return;
     }
 
@@ -388,17 +415,19 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
           {
             productId: purchaseProductId,
             bagCount: purchaseBags,
-            bagWeightKg: purchaseBags > 0 ? purchaseWeightKg / purchaseBags : 50,
+            bagWeightKg: purchaseBags > 0 ? (purchaseWeightKg - purchaseLooseKg) / purchaseBags : 50,
+            grossWeightKg: purchaseWeightKg,
+            bardanaTareKg: purchaseBags > 0 ? purchaseBags * 1 : 0,
             netWeightKg: purchaseWeightKg,
             unitPricePerKg: purchaseRate,
             lineTotal: totalAmt,
           },
         ],
         paidAmount: purchasePaymentType === 'CASH' ? totalAmt : 0,
-        notes: `رات کی انٹری (Night Entry): ${purchaseBags} بوریاں ${targetProduct?.name}`,
+        notes: `رات کی انٹری (Night Entry): ${purchaseBags} بوریاں ${purchaseLooseKg > 0 ? `+ ${purchaseLooseKg} kg کھلے ` : ''}[${targetProduct?.name}]`,
       });
 
-      showToast(`آج کا مال درج کر لیا گیا [${purchaseBags} بوریاں - ${targetProduct?.name}]`);
+      showToast(`آج کا مال درج کر لیا گیا [${purchaseBags} بوریاں ${purchaseLooseKg > 0 ? `+ ${purchaseLooseKg} kg کھلے ` : ''}- ${targetProduct?.name}]`);
 
       // Add to local state & reload sheet to refresh stock availability
       setTodayPurchases((prev) => [
@@ -418,6 +447,7 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
 
       // Reset form
       setPurchaseBags(50);
+      setPurchaseLooseKg(0);
       setPurchaseWeightKg(2500);
 
       // Reload sheet so new stock appears in sales tab
@@ -555,9 +585,9 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
           </div>
 
           {/* Single Shop Location Badge */}
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-medium text-slate-700">
-            <WarehouseIcon className="w-4 h-4 text-slate-500" />
-            <span>مرکزی کاؤنٹر (Main Counter)</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-300 rounded-xl text-xs font-bold text-emerald-800 shadow-2xs">
+            <WarehouseIcon className="w-4 h-4 text-emerald-600" />
+            <span>مرکزی دکان - مانسہرہ (Main Shop - Mansehra)</span>
           </div>
         </div>
 
@@ -700,6 +730,7 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                       <th className="py-3 px-3">چاول کی ورائٹی (Variety)</th>
                       <th className="py-3 px-3 text-right">دکان میں سٹاک</th>
                       <th className="py-3 px-3 text-right">بیچی گئی بوریاں</th>
+                      <th className="py-3 px-3 text-right text-emerald-800 bg-emerald-50/60 font-bold">کھلے کلو (Loose KG)</th>
                       <th className="py-3 px-3 text-right">کل وزن (Kg)</th>
                       <th className="py-3 px-3 text-right">ریٹ (PKR/Kg)</th>
                       <th className="py-3 px-3 text-right font-bold text-emerald-800">رقم (Line Total)</th>
@@ -708,19 +739,19 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                   <tbody className="divide-y divide-slate-100">
                     {isLoading ? (
                       <tr>
-                        <td colSpan={6} className="py-12 text-center text-[#718078]">
+                        <td colSpan={7} className="py-12 text-center text-[#718078]">
                           چاول کا کیٹلاگ لوڈ ہو رہا ہے...
                         </td>
                       </tr>
                     ) : filteredCatalog.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-12 text-center text-[#718078]">
+                        <td colSpan={7} className="py-12 text-center text-[#718078]">
                           کوئی چاول نہیں ملا۔
                         </td>
                       </tr>
                     ) : (
                       filteredCatalog.map((p) => {
-                        const line = linesMap[p.id] || { bagCount: 0, weightKg: 0, ratePerKg: p.salePricePerKg || 0 };
+                        const line = linesMap[p.id] || { bagCount: 0, looseKg: 0, weightKg: 0, ratePerKg: p.salePricePerKg || 0 };
                         const isExceeded = line.weightKg > p.availableWeightKg || line.bagCount > p.availableBags;
                         const lineTotal = line.weightKg * line.ratePerKg;
 
@@ -730,7 +761,7 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                             className={`transition-colors ${
                               isExceeded
                                 ? 'bg-red-50/60'
-                                : line.bagCount > 0
+                                : line.bagCount > 0 || line.looseKg > 0
                                 ? 'bg-emerald-50/20 hover:bg-emerald-50/40'
                                 : 'hover:bg-[#F5F7F5]/50'
                             }`}
@@ -758,7 +789,23 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                                 onChange={(e) =>
                                   handleBagCountChange(p.id, parseInt(e.target.value || '0', 10), p.defaultBagWeightKg)
                                 }
-                                className="w-20 bg-[#F5F7F5] border border-[#E4EAE5] rounded-xl px-2 py-1.5 text-right font-bold text-xs focus:ring-2 focus:ring-[#087A55]/30 outline-none"
+                                className="w-16 bg-[#F5F7F5] border border-[#E4EAE5] rounded-xl px-2 py-1.5 text-right font-bold text-xs focus:ring-2 focus:ring-[#087A55]/30 outline-none"
+                              />
+                            </td>
+
+                            {/* Loose KG Input */}
+                            <td className="py-3 px-3 text-right bg-emerald-50/20">
+                              <input
+                                type="number"
+                                min={0}
+                                step="any"
+                                disabled={isConfirmed}
+                                value={line.looseKg === 0 ? '' : line.looseKg}
+                                placeholder="0"
+                                onChange={(e) =>
+                                  handleLooseKgChange(p.id, parseFloat(e.target.value || '0'), p.defaultBagWeightKg)
+                                }
+                                className="w-20 bg-white border border-emerald-300 rounded-xl px-2 py-1.5 text-right font-bold text-xs focus:ring-2 focus:ring-[#087A55]/30 outline-none text-emerald-800"
                               />
                             </td>
 
@@ -1010,7 +1057,7 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                       const prod = sheetData?.productsCatalog.find((p) => p.id === pid);
                       if (prod) {
                         setPurchaseRate(prod.costPricePerKg || 250);
-                        setPurchaseWeightKg(purchaseBags * prod.defaultBagWeightKg);
+                        setPurchaseWeightKg((purchaseBags * prod.defaultBagWeightKg) + (purchaseLooseKg || 0));
                       }
                     }}
                     className="w-full bg-[#F5F7F5] border border-[#E4EAE5] rounded-xl px-3 py-2 text-xs font-bold text-[#172B25] outline-none"
@@ -1023,22 +1070,42 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                   </select>
                 </div>
 
-                {/* Bags & Weight */}
-                <div className="grid grid-cols-2 gap-3">
+                {/* Bags, Loose Kg & Total Weight */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="text-xs font-bold text-[#172B25] block mb-1">بوریاں (Bags):</label>
                     <input
                       type="number"
-                      min={1}
-                      value={purchaseBags}
+                      min={0}
+                      value={purchaseBags === 0 ? '' : purchaseBags}
+                      placeholder="0"
                       onChange={(e) => {
                         const b = parseInt(e.target.value || '0', 10);
                         setPurchaseBags(b);
                         const prod = sheetData?.productsCatalog.find((p) => p.id === purchaseProductId);
                         const bw = prod ? prod.defaultBagWeightKg : 50;
-                        setPurchaseWeightKg(b * bw);
+                        setPurchaseWeightKg((b * bw) + (purchaseLooseKg || 0));
                       }}
                       className="w-full bg-[#F5F7F5] border border-[#E4EAE5] rounded-xl px-3 py-2 text-xs font-bold text-[#172B25]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-emerald-800 block mb-1">کھلے کلو (Loose KG):</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={purchaseLooseKg === 0 ? '' : purchaseLooseKg}
+                      placeholder="0"
+                      onChange={(e) => {
+                        const l = parseFloat(e.target.value || '0');
+                        setPurchaseLooseKg(l);
+                        const prod = sheetData?.productsCatalog.find((p) => p.id === purchaseProductId);
+                        const bw = prod ? prod.defaultBagWeightKg : 50;
+                        setPurchaseWeightKg((purchaseBags * bw) + l);
+                      }}
+                      className="w-full bg-emerald-50/50 border border-emerald-300 rounded-xl px-3 py-2 text-xs font-bold text-emerald-800 focus:ring-1 focus:ring-emerald-600"
                     />
                   </div>
 
@@ -1046,7 +1113,7 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                     <label className="text-xs font-bold text-[#172B25] block mb-1">کل وزن (Net Kg):</label>
                     <input
                       type="number"
-                      min={1}
+                      min={0}
                       step="any"
                       value={purchaseWeightKg}
                       onChange={(e) => setPurchaseWeightKg(parseFloat(e.target.value || '0'))}

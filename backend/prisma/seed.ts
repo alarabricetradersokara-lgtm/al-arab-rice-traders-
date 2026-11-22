@@ -107,23 +107,30 @@ async function main() {
     },
   });
 
-  // 5. Warehouses (Godowns & Silos)
-  console.log('  → Seeding Warehouses & Godowns...');
+  // 5. Single Shop Warehouse (مرکزی دکان - مانسہرہ)
+  console.log('  → Seeding Single Shop Warehouse (مرکزی دکان - مانسہرہ)...');
   const warehousesData = [
-    { code: 'GODOWN-01', name: 'Godown 1 - Central Mill Storage', location: 'Main Mill Premises, Kamoke', capacityBags: 25000, capacityKg: 1250000 },
-    { code: 'GODOWN-02', name: 'Godown 2 - Mandi Gate Warehouse', location: 'Grain Market Bypass, Hafizabad', capacityBags: 15000, capacityKg: 750000 },
-    { code: 'SILO-A', name: 'Silo A - Raw Grain Storage', location: 'Intake Hopper Line 1', capacityBags: 0, capacityKg: 500000 },
+    { code: 'MANSEHRA-01', name: 'مرکزی دکان - مانسہرہ (Main Shop - Mansehra)', location: 'مرکزی دکان مانسہرہ (Main Shop, Mansehra)', capacityBags: 50000, capacityKg: 2500000 },
   ];
 
   const warehouses: Record<string, string> = {};
   for (const w of warehousesData) {
     const wh = await prisma.warehouse.upsert({
       where: { code: w.code },
-      update: {},
+      update: {
+        name: w.name,
+        location: w.location,
+        capacityBags: w.capacityBags,
+        capacityKg: w.capacityKg,
+        isActive: true,
+      },
       create: w,
     });
     warehouses[w.code] = wh.id;
   }
+  warehouses['GODOWN-01'] = warehouses['MANSEHRA-01'];
+  warehouses['GODOWN-02'] = warehouses['MANSEHRA-01'];
+  warehouses['SILO-A'] = warehouses['MANSEHRA-01'];
 
   // 6. Cash and Bank Accounts
   console.log('  → Seeding Cash & Bank Accounts...');

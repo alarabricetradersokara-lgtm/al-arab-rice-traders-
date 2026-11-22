@@ -42,6 +42,7 @@ interface PurchaseEntryScreenProps {
 interface FormItemRow {
   productId: string;
   bagCount: number;
+  looseKg: number;
   bagWeightKg: number;
   grossWeightKg: number;
   bardanaTareKg: number;
@@ -138,6 +139,7 @@ export const PurchaseEntryScreen: React.FC<PurchaseEntryScreenProps> = ({
             {
               productId: defaultProd.id,
               bagCount: 100,
+              looseKg: 0,
               bagWeightKg: defaultBagWt,
               grossWeightKg: 100 * defaultBagWt,
               bardanaTareKg: 100 * 1, // 1 kg jute tare
@@ -176,9 +178,17 @@ export const PurchaseEntryScreen: React.FC<PurchaseEntryScreenProps> = ({
         }
       }
 
-      if ('bagCount' in updates || 'bagWeightKg' in updates || 'grossWeightKg' in updates || 'bardanaTareKg' in updates) {
+      if ('bagCount' in updates || 'looseKg' in updates || 'bagWeightKg' in updates || 'grossWeightKg' in updates || 'bardanaTareKg' in updates) {
         if (!('grossWeightKg' in updates)) {
-          current.grossWeightKg = current.bagCount * current.bagWeightKg;
+          const bags = current.bagCount || 0;
+          const bagWt = current.bagWeightKg || 0;
+          const loose = current.looseKg || 0;
+          current.grossWeightKg = (bags * bagWt) + loose;
+        }
+        if (current.bagCount === 0 && !('bardanaTareKg' in updates)) {
+          current.bardanaTareKg = 0;
+        } else if ('bagCount' in updates && !('bardanaTareKg' in updates)) {
+          current.bardanaTareKg = current.bagCount * 1;
         }
         current.netWeightKg = Math.max(0, current.grossWeightKg - (current.bardanaTareKg || 0));
       }
@@ -207,6 +217,7 @@ export const PurchaseEntryScreen: React.FC<PurchaseEntryScreenProps> = ({
       {
         productId: defaultProd.id,
         bagCount: 50,
+        looseKg: 0,
         bagWeightKg: defaultBagWt,
         grossWeightKg: 50 * defaultBagWt,
         bardanaTareKg: 50 * 1,
@@ -227,6 +238,7 @@ export const PurchaseEntryScreen: React.FC<PurchaseEntryScreenProps> = ({
   // Totals calculations
   const grossSubTotal = items.reduce((acc, it) => acc + (it.lineTotal || 0), 0);
   const totalBags = items.reduce((acc, it) => acc + (it.bagCount || 0), 0);
+  const totalLooseKg = items.reduce((acc, it) => acc + (it.looseKg || 0), 0);
   const totalGrossKg = items.reduce((acc, it) => acc + (it.grossWeightKg || 0), 0);
   const totalTareKg = items.reduce((acc, it) => acc + (it.bardanaTareKg || 0), 0);
   const totalNetKg = items.reduce((acc, it) => acc + (it.netWeightKg || 0), 0);
@@ -393,20 +405,15 @@ export const PurchaseEntryScreen: React.FC<PurchaseEntryScreenProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-[#172B25] mb-1">
-                Destination Warehouse / Godown <span className="text-red-500">*</span>
+                منزل / گودام (Shop Location) <span className="text-red-500">*</span>
               </label>
-              <select
-                required
-                value={selectedWarehouseId}
-                onChange={(e) => setSelectedWarehouseId(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-[#E4EAE5] bg-white rounded-xl focus:border-[#087A55] focus:ring-1 focus:ring-[#087A55] outline-none"
-              >
-                {warehouses.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name} ({w.code}) — {w.location}
-                  </option>
-                ))}
-              </select>
+              <div className="w-full px-3 py-2 text-xs border border-emerald-300 bg-emerald-50 rounded-xl font-bold text-[#087A55] flex items-center justify-between shadow-2xs">
+                <div className="flex items-center gap-2 truncate">
+                  <Building2 className="w-4 h-4 text-[#087A55] shrink-0" />
+                  <span className="truncate">مرکزی دکان - مانسہرہ (Main Shop - Mansehra)</span>
+                </div>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md shrink-0 font-medium">واحد مقام</span>
+              </div>
             </div>
 
             <div>
@@ -461,15 +468,16 @@ export const PurchaseEntryScreen: React.FC<PurchaseEntryScreenProps> = ({
             <table className="w-full text-left border-collapse text-xs">
               <thead className="bg-[#F5F7F5] border-b border-[#E4EAE5] text-[#172B25] font-semibold">
                 <tr>
-                  <th className="py-2.5 px-3 min-w-[200px]">Rice Variety / Item</th>
-                  <th className="py-2.5 px-2 w-24 text-right">Bags</th>
-                  <th className="py-2.5 px-2 w-20 text-right">Bag Wt (kg)</th>
-                  <th className="py-2.5 px-2 w-28 text-right">Gross Wt (kg)</th>
-                  <th className="py-2.5 px-2 w-24 text-right">Tare (Bardana)</th>
-                  <th className="py-2.5 px-2 w-28 text-right font-bold text-[#087A55]">Net Wt (kg)</th>
-                  <th className="py-2.5 px-2 w-24 text-right text-[#064E3B]">Maunds</th>
-                  <th className="py-2.5 px-2 w-32 text-right">Rate & Unit</th>
-                  <th className="py-2.5 px-3 w-32 text-right font-bold text-[#172B25]">Line Total</th>
+                  <th className="py-2.5 px-3 min-w-[200px]">چاول کی ورائٹی (Item)</th>
+                  <th className="py-2.5 px-2 w-20 text-right">بوریاں (Bags)</th>
+                  <th className="py-2.5 px-2 w-24 text-right text-emerald-800 bg-emerald-50/60 font-bold">کھلے کلو (Loose KG)</th>
+                  <th className="py-2.5 px-2 w-20 text-right">وزن/بوری (kg)</th>
+                  <th className="py-2.5 px-2 w-24 text-right">کل وزن (Gross)</th>
+                  <th className="py-2.5 px-2 w-20 text-right">باردانہ (Tare)</th>
+                  <th className="py-2.5 px-2 w-24 text-right font-bold text-[#087A55]">خالص وزن (Net)</th>
+                  <th className="py-2.5 px-2 w-20 text-right text-[#064E3B]">من (Maunds)</th>
+                  <th className="py-2.5 px-2 w-28 text-right">ریٹ (Rate & Unit)</th>
+                  <th className="py-2.5 px-3 w-28 text-right font-bold text-[#172B25]">کل رقم (Line Total)</th>
                   <th className="py-2.5 px-2 w-10 text-center"></th>
                 </tr>
               </thead>
@@ -497,12 +505,27 @@ export const PurchaseEntryScreen: React.FC<PurchaseEntryScreenProps> = ({
                       <td className="py-2 px-2 text-right">
                         <input
                           type="number"
-                          min="1"
+                          min="0"
                           value={row.bagCount}
                           onChange={(e) =>
                             updateRow(index, { bagCount: parseInt(e.target.value, 10) || 0 })
                           }
                           className="w-full text-right px-2 py-1.5 text-xs border border-[#E4EAE5] rounded-lg font-mono outline-none"
+                        />
+                      </td>
+
+                      {/* Loose KG Input */}
+                      <td className="py-2 px-2 text-right bg-emerald-50/30">
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          value={row.looseKg === 0 ? '' : row.looseKg}
+                          placeholder="0"
+                          onChange={(e) =>
+                            updateRow(index, { looseKg: parseFloat(e.target.value) || 0 })
+                          }
+                          className="w-full text-right px-2 py-1.5 text-xs border border-emerald-300 bg-white rounded-lg font-mono font-bold text-emerald-800 outline-none focus:ring-1 focus:ring-emerald-600"
                         />
                       </td>
 
@@ -602,8 +625,9 @@ export const PurchaseEntryScreen: React.FC<PurchaseEntryScreenProps> = ({
               </tbody>
               <tfoot className="bg-[#F5F7F5] font-bold text-[#172B25] border-t-2 border-[#E4EAE5]">
                 <tr>
-                  <td className="py-2.5 px-3">SUBTOTAL CATCH-WEIGHT:</td>
-                  <td className="py-2.5 px-2 text-right font-mono text-[#087A55]">{totalBags} bags</td>
+                  <td className="py-2.5 px-3">مجموعی کاندہ وزن (Total):</td>
+                  <td className="py-2.5 px-2 text-right font-mono text-[#087A55]">{totalBags} بوریاں</td>
+                  <td className="py-2.5 px-2 text-right font-mono text-emerald-800 bg-emerald-50/60 font-bold">{totalLooseKg} kg کھلے</td>
                   <td></td>
                   <td className="py-2.5 px-2 text-right font-mono text-[#718078]">{totalGrossKg.toLocaleString()} kg</td>
                   <td className="py-2.5 px-2 text-right font-mono text-red-600">-{totalTareKg.toLocaleString()} kg</td>

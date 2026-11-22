@@ -61,10 +61,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <div className="h-6 w-px bg-slate-200 hidden md:block" />
 
         {/* Single Shop Context Badge */}
-        <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-slate-100/80 border border-slate-200/80 rounded-xl">
-          <Warehouse className="w-3.5 h-3.5 text-slate-500" />
-          <span className="text-xs font-bold text-slate-700">مرکزی کاؤنٹر</span>
-          <span className="text-[10px] text-slate-400 font-medium">Main Counter</span>
+        <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200/80 rounded-xl">
+          <Warehouse className="w-3.5 h-3.5 text-emerald-700" />
+          <span className="text-xs font-bold text-emerald-900">مرکزی دکان - مانسہرہ</span>
+          <span className="text-[10px] text-emerald-700/80 font-medium">(Main Shop - Mansehra)</span>
         </div>
       </div>
 

@@ -455,8 +455,8 @@ export const MainDashboardScreen: React.FC = () => {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] px-2.5 py-1 bg-slate-100 text-slate-700 font-medium rounded-lg border border-slate-200">
-                مرکزی کاؤنٹر · Main Counter
+              <span className="text-[11px] px-2.5 py-1 bg-emerald-50 text-emerald-800 font-bold rounded-lg border border-emerald-200">
+                مرکزی دکان - مانسہرہ · Main Shop Mansehra
               </span>
             </div>
           </div>
