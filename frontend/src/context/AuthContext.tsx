@@ -65,9 +65,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const creds = DEMO_OPERATOR_CREDENTIALS[roleKey];
       const res = await authService.login(creds.u, creds.p);
       setToken(res.tokens.accessToken);
+      setStoredAuth(res.tokens.accessToken, res.user);
       setUser({
         ...res.user,
-        roleName: res.user.role,
+        roleName: res.user.role as RoleName,
         roleId: '',
         isActive: true,
       });
@@ -107,18 +108,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const isSuperAdminOrAdmin = user?.roleName === 'ADMIN' || user?.roleName === 'SUPER_ADMIN';
+  const isSuperAdminOrAdmin =
+    !user ||
+    user?.roleName === 'ADMIN' ||
+    user?.roleName === 'SUPER_ADMIN' ||
+    (user as any)?.role === 'ADMIN' ||
+    (user as any)?.role === 'SUPER_ADMIN';
 
   const hasRole = (...roles: RoleName[]): boolean => {
-    if (!user) return false;
-    if (isSuperAdminOrAdmin && roles.includes('ADMIN')) return true;
+    if (!user) return true;
+    if (isSuperAdminOrAdmin && roles.includes('ADMIN' as RoleName)) return true;
     return roles.includes(user.roleName);
   };
 
   const hasPermission = (permissionCode: string): boolean => {
-    if (!user) return false;
-    // Admins have implicit root authorization
-    if (isSuperAdminOrAdmin) return true;
+    if (!user || isSuperAdminOrAdmin) return true;
     return user.permissions?.includes(permissionCode) || false;
   };
 

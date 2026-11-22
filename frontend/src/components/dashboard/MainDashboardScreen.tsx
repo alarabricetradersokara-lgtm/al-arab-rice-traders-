@@ -45,6 +45,7 @@ import {
   DashboardRecentData,
 } from '../../types/dashboard';
 import { exportToExcel, printReportDocument } from '../../utils/exportUtils';
+import { ensureAuthenticated } from '../../services/api';
 
 export const MainDashboardScreen: React.FC = () => {
   const [filter, setFilter] = useState<'today' | 'yesterday' | 'week' | 'month' | 'custom'>('today');
@@ -68,6 +69,9 @@ export const MainDashboardScreen: React.FC = () => {
       setLoading(true);
       setError(null);
 
+      // Ensure valid JWT before fetching stats
+      await ensureAuthenticated();
+
       const [statsRes, chartsRes, recentRes] = await Promise.all([
         dashboardService.getStats({
           filter,
@@ -83,6 +87,28 @@ export const MainDashboardScreen: React.FC = () => {
       setCharts(chartsRes);
       setRecent(recentRes);
     } catch (err: any) {
+      if (err?.response?.status === 401) {
+        try {
+          await ensureAuthenticated(true);
+          const [statsRes, chartsRes, recentRes] = await Promise.all([
+            dashboardService.getStats({
+              filter,
+              startDate: customStart || undefined,
+              endDate: customEnd || undefined,
+            }),
+            dashboardService.getCharts(14),
+            dashboardService.getRecent(),
+          ]);
+          setKpi(statsRes.kpi);
+          setPeriod(statsRes.period);
+          setCharts(chartsRes);
+          setRecent(recentRes);
+          return;
+        } catch (retryErr: any) {
+          setError(retryErr?.response?.data?.message || retryErr?.message || 'Failed to load dashboard data');
+          return;
+        }
+      }
       setError(err?.response?.data?.message || err?.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);

@@ -13,17 +13,10 @@ export const createApp = (): Express => {
   // Security & HTTP Headers
   app.use(helmet());
 
-  // CORS Configuration
+  // CORS Configuration - Permissive for Vercel, localhost, and mobile PWA
   app.use(
     cors({
-      origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps, curl, or server-to-server)
-        if (!origin || config.cors.origin.includes(origin) || config.cors.origin.includes('*')) {
-          callback(null, true);
-        } else {
-          callback(new AppError('CORS origin denied', 403));
-        }
-      },
+      origin: true,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
