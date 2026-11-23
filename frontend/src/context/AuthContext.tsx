@@ -10,21 +10,12 @@ interface AuthContextType {
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
-  switchOperator: (username: 'admin' | 'accountant' | 'stock_mgr' | 'sales_op' | 'viewer') => Promise<void>;
   hasRole: (...roles: RoleName[]) => boolean;
   hasPermission: (permissionCode: string) => boolean;
   isSuperAdminOrAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const OPERATOR_CREDENTIALS: Record<string, { u: string; p: string }> = {
-  admin: { u: 'admin', p: 'Admin@12345' },
-  accountant: { u: 'accountant', p: 'AlArab@2026' },
-  stock_mgr: { u: 'stock_mgr', p: 'AlArab@2026' },
-  sales_op: { u: 'sales_op', p: 'AlArab@2026' },
-  viewer: { u: 'viewer', p: 'AlArab@2026' },
-};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -89,18 +80,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(null);
   };
 
-  const switchOperator = async (roleKey: 'admin' | 'accountant' | 'stock_mgr' | 'sales_op' | 'viewer') => {
-    setIsLoading(true);
-    try {
-      const creds = OPERATOR_CREDENTIALS[roleKey];
-      if (creds) {
-        await login(creds.u, creds.p);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const isSuperAdminOrAdmin =
     user?.roleName === 'ADMIN' ||
     user?.roleName === 'SUPER_ADMIN' ||
@@ -128,7 +107,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         login,
         logout,
-        switchOperator,
         hasRole,
         hasPermission,
         isSuperAdminOrAdmin,

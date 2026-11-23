@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { BrandEmblem } from '../common/BrandLogo';
 import {
   Lock,
   User as UserIcon,
@@ -59,19 +60,16 @@ export const LoginScreen: React.FC = () => {
 
       {/* Main Container */}
       <div className="w-full max-w-md relative z-10">
-        {/* Brand Card */}
+        {/* Brand Header */}
         <div className="text-center mb-6">
-          <div
-            className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-3xl flex items-center justify-center text-white text-2xl sm:text-3xl font-black shadow-xl shadow-emerald-900/40 border-2 border-emerald-400/30 mb-3 transition-transform hover:scale-105"
-            style={{ backgroundColor: themeConfig.primaryColor }}
-          >
-            AR
+          <div className="flex justify-center mb-3">
+            <BrandEmblem size={84} className="shadow-2xl shadow-emerald-950/60" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-            العرب رائز ٹریڈرز
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center justify-center gap-2">
+            <span>العرب رائز ٹریڈرز</span>
           </h1>
-          <p className="text-xs sm:text-sm text-emerald-300/80 font-medium mt-1">
-            AL ARAB RICE TRADERS · محفوظ کاروباری نظام
+          <p className="text-xs sm:text-sm text-emerald-300 font-semibold mt-1 tracking-wide">
+            AL ARAB RICE TRADERS · اوکاڑہ ⟷ مانسہرہ
           </p>
 
           {/* Location Badge */}

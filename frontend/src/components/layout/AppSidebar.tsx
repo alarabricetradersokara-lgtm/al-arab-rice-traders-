@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { CompanySettings } from '../../types/advanced';
 import { useAuth } from '../../context/AuthContext';
+import { BrandLogo } from '../common/BrandLogo';
 
 export type NavTab =
   | 'dashboard'
@@ -293,19 +294,15 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         )}
       >
         {/* Mobile Header in Slide Drawer */}
-        <div className="flex md:hidden items-center justify-between p-4 border-b border-slate-200 bg-slate-900 text-white">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-700 flex items-center justify-center text-white font-black text-xs">
-              AR
-            </div>
-            <div>
-              <span className="font-bold text-sm tracking-wide block">العرب رائز ٹریڈرز</span>
-              <span className="text-[10px] text-slate-400">مین مینیو · Main Menu</span>
-            </div>
-          </div>
+        <div className="flex md:hidden items-center justify-between p-3.5 border-b border-slate-800 bg-slate-900 text-white">
+          <BrandLogo
+            size="sm"
+            textColor="light"
+            subText="اوکاڑہ ⟷ مانسہرہ (Okara · Mansehra)"
+          />
           <button
             onClick={onCloseMobile}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-white cursor-pointer"
+            className="p-1.5 rounded-lg hover:bg-white/10 text-white cursor-pointer ml-1"
             aria-label="مینیو بند کریں"
           >
             <X className="w-5 h-5" />

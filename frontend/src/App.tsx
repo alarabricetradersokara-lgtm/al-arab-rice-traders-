@@ -318,7 +318,7 @@ function AppContent() {
         />
 
         {/* Content Area */}
-        <main className="flex-1 p-3 sm:p-6 lg:p-8 pb-24 md:pb-8 max-w-7xl mx-auto w-full space-y-4 sm:space-y-6 overflow-x-hidden">
+        <main className="flex-1 p-3 sm:p-5 lg:p-8 pb-32 md:pb-12 max-w-7xl mx-auto w-full space-y-4 sm:space-y-6 overflow-x-hidden">
           {/* TAB 0: Main Business Intelligence Dashboard */}
           {activeTab === 'dashboard' && (
             <MainDashboardScreen />

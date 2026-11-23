@@ -3,6 +3,7 @@ import { Warehouse, Bell, Menu, Palette } from 'lucide-react';
 import { OperatorProfileDropdown } from '../auth/OperatorProfileDropdown';
 import { ThemeSelectorModal } from './ThemeSelectorModal';
 import { useTheme } from '../../context/ThemeContext';
+import { BrandLogo } from '../common/BrandLogo';
 
 interface AppHeaderProps {
   selectedWarehouse: string;
@@ -40,23 +41,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           </button>
         )}
 
-        {/* Brand Icon & Name */}
-        <div className="flex items-center gap-2.5">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-xs shadow-xs flex-shrink-0 tracking-wider transition-colors"
-            style={{ backgroundColor: themeConfig.primaryColor }}
-          >
-            AR
-          </div>
-          <div>
-            <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight truncate max-w-[150px] sm:max-w-none">
-              العرب رائز ٹریڈرز
-            </h1>
-            <p className="text-[10px] sm:text-[11px] font-normal text-slate-500 hidden xs:block">
-              Al Arab Rice Traders · کاؤنٹر و کھاتہ
-            </p>
-          </div>
-        </div>
+        {/* Luxury Brand Emblem & Title */}
+        <BrandLogo
+          size="md"
+          subText="اوکاڑہ ⟷ مانسہرہ (Okara · Mansehra)"
+          className="cursor-pointer"
+        />
 
         <div className="h-6 w-px bg-slate-200 hidden md:block" />
 
