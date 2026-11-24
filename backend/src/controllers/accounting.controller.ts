@@ -118,6 +118,29 @@ export const createBankAccount = async (req: Request, res: Response, next: NextF
   }
 };
 
+export const deleteBankAccount = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const existing = await prisma.bankAccount.findUnique({ where: { id } });
+    if (!existing) {
+      throw new AppError('Bank account not found', 404);
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.payment.deleteMany({ where: { bankAccountId: id } });
+      await tx.receipt.deleteMany({ where: { bankAccountId: id } });
+      await tx.expense.deleteMany({ where: { bankAccountId: id } });
+      await tx.otherIncome.deleteMany({ where: { bankAccountId: id } });
+      await tx.cashTransfer.deleteMany({ where: { OR: [{ fromBankAccountId: id }, { toBankAccountId: id }] } });
+      await tx.bankAccount.delete({ where: { id } });
+    });
+
+    sendSuccess(res, null, 'Bank account deleted successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 // =========================================================================
 // 2. CASH & BANK TRANSFERS
 // =========================================================================
@@ -585,6 +608,36 @@ export const reverseExpense = async (req: Request, res: Response, next: NextFunc
     });
 
     sendSuccess(res, result, 'Expense reversed and balance restored');
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteExpense = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const exp = await prisma.expense.findUnique({ where: { id } });
+    if (!exp) throw new AppError('Expense not found', 404);
+
+    await prisma.$transaction(async (tx) => {
+      if (exp.status === 'POSTED') {
+        const numAmount = new Decimal(exp.amount.toString());
+        if (exp.paymentMethod === 'CASH' && exp.cashAccountId) {
+          await tx.cashAccount.update({
+            where: { id: exp.cashAccountId },
+            data: { balance: { increment: numAmount } },
+          });
+        } else if (exp.bankAccountId) {
+          await tx.bankAccount.update({
+            where: { id: exp.bankAccountId },
+            data: { currentBalance: { increment: numAmount } },
+          });
+        }
+      }
+      await tx.expense.delete({ where: { id } });
+    });
+
+    sendSuccess(res, null, 'Expense deleted successfully');
   } catch (err) {
     next(err);
   }

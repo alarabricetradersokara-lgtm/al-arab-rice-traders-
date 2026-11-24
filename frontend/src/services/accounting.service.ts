@@ -39,6 +39,9 @@ export const accountingService = {
     const res = await api.post('/accounting/bank-accounts', data);
     return res.data.data;
   },
+  deleteBankAccount: async (id: string): Promise<void> => {
+    await api.delete(`/accounting/bank-accounts/${id}`);
+  },
 
   // Transfers
   getTransfers: async (params?: { startDate?: string; endDate?: string; status?: string }): Promise<CashTransfer[]> => {
@@ -87,6 +90,9 @@ export const accountingService = {
   reverseExpense: async (id: string, reason?: string): Promise<any> => {
     const res = await api.post(`/accounting/expenses/${id}/reverse`, { reason });
     return res.data.data;
+  },
+  deleteExpense: async (id: string): Promise<void> => {
+    await api.delete(`/accounting/expenses/${id}`);
   },
 
   // Other Incomes

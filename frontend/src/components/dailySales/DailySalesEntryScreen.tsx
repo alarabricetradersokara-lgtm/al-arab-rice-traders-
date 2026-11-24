@@ -15,6 +15,7 @@ import { dailySalesService } from '../../services/dailySales.service';
 import { purchaseService } from '../../services/purchase.service';
 import { partyService } from '../../services/party.service';
 import { BranchRemittanceSection } from './BranchRemittanceSection';
+import { BranchExpensesSection } from './BranchExpensesSection';
 import {
   Calendar,
   Warehouse as WarehouseIcon,
@@ -39,6 +40,7 @@ import {
   ArrowUpRight,
   TrendingUp,
   Landmark,
+  Receipt,
 } from 'lucide-react';
 
 interface DailySalesEntryScreenProps {
@@ -76,8 +78,9 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
     new Date().toISOString().split('T')[0]
   );
 
-  // Active Tab for Night Entry: Sales vs Purchases vs Remittance vs Galla
-  const [activeTab, setActiveTab] = useState<'SALES' | 'PURCHASES' | 'REMITTANCE' | 'GALLA'>('SALES');
+  // Active Tab for Night Entry: Sales vs Expenses vs Purchases vs Remittance vs Galla
+  const [activeTab, setActiveTab] = useState<'SALES' | 'EXPENSES' | 'PURCHASES' | 'REMITTANCE' | 'GALLA'>('SALES');
+  const [branchCashExpenses, setBranchCashExpenses] = useState<number>(0);
 
   const [sheetData, setSheetData] = useState<DailySalesSheetResponse | null>(null);
   const [suppliersList, setSuppliersList] = useState<Supplier[]>([]);
@@ -726,7 +729,7 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
       )}
 
       {/* Modern Segmented Navigation Tabs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/80 gap-1.5 sm:gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/80 gap-1.5 sm:gap-2">
         <button
           onClick={() => setActiveTab('SALES')}
           className={`py-2.5 px-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
@@ -747,22 +750,20 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('PURCHASES')}
+          onClick={() => setActiveTab('EXPENSES')}
           className={`py-2.5 px-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-            activeTab === 'PURCHASES'
-              ? 'bg-white text-blue-800 shadow-xs border border-slate-200/60 font-bold'
+            activeTab === 'EXPENSES'
+              ? 'bg-white text-rose-800 shadow-xs border border-slate-200/60 font-bold ring-2 ring-rose-500/20'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <Truck className="w-4 h-4 shrink-0 text-blue-700" />
-          <span className="truncate">2. مال آیا (خریداری)</span>
-          <span
-            className={`px-1.5 py-0.5 rounded-full text-[10px] shrink-0 ${
-              activeTab === 'PURCHASES' ? 'bg-blue-100 text-blue-800 font-bold' : 'bg-slate-200/70 text-slate-600'
-            }`}
-          >
-            {todayPurchases.length}
-          </span>
+          <Receipt className="w-4 h-4 shrink-0 text-rose-700" />
+          <span className="truncate">2. دکان خرچے (Expenses)</span>
+          {branchCashExpenses > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] shrink-0 bg-rose-100 text-rose-800 font-bold">
+              {branchCashExpenses.toLocaleString()}
+            </span>
+          )}
         </button>
 
         <button
@@ -774,33 +775,38 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
           }`}
         >
           <Landmark className="w-4 h-4 shrink-0 text-emerald-700" />
-          <span className="truncate">3. مانسہرہ وصولی (کیش/بینک)</span>
+          <span className="truncate">3. اوکاڑہ وصولی (نقد/بینک)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('PURCHASES')}
+          className={`py-2.5 px-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeTab === 'PURCHASES'
+              ? 'bg-white text-blue-800 shadow-xs border border-slate-200/60 font-bold'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+          }`}
+        >
+          <Truck className="w-4 h-4 shrink-0 text-blue-700" />
+          <span className="truncate">4. مال آیا (خریداری)</span>
           <span
-            className={`px-1.5 py-0.5 rounded-full text-[10px] shrink-0 font-bold ${
-              activeTab === 'REMITTANCE' ? 'bg-emerald-700 text-white' : 'bg-emerald-100 text-emerald-800'
+            className={`px-1.5 py-0.5 rounded-full text-[10px] shrink-0 ${
+              activeTab === 'PURCHASES' ? 'bg-blue-100 text-blue-800 font-bold' : 'bg-slate-200/70 text-slate-600'
             }`}
           >
-            اوکاڑہ
+            {todayPurchases.length}
           </span>
         </button>
 
         <button
           onClick={() => setActiveTab('GALLA')}
-          className={`py-2.5 px-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer col-span-2 md:col-span-1 ${
             activeTab === 'GALLA'
               ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60 font-bold'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
           <Wallet className="w-4 h-4 shrink-0 text-slate-700" />
-          <span className="truncate">4. گلہ و کلوزنگ</span>
-          <span
-            className={`px-1.5 py-0.5 rounded-full text-[10px] shrink-0 font-mono ${
-              activeTab === 'GALLA' ? 'bg-slate-900 text-white font-bold' : 'bg-slate-200/80 text-slate-700'
-            }`}
-          >
-            کلوزنگ
-          </span>
+          <span className="truncate">5. گلہ و کلوزنگ</span>
         </button>
       </div>
 
@@ -1478,6 +1484,17 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
       )}
 
       {/* ========================================================================= */}
+      {/* TAB 2: BRANCH EXPENSES (MANSEHRA DAILY SHOP EXPENSES) */}
+      {/* ========================================================================= */}
+      {activeTab === 'EXPENSES' && (
+        <BranchExpensesSection
+          selectedDate={selectedDate}
+          onTotalExpensesChange={setBranchCashExpenses}
+          showToast={showToast}
+        />
+      )}
+
+      {/* ========================================================================= */}
       {/* TAB 3: BRANCH REMITTANCE (MANSEHRA CASH & BANK TO OKARA OWNER) */}
       {/* ========================================================================= */}
       {activeTab === 'REMITTANCE' && (
@@ -1537,10 +1554,19 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                 <span className="font-mono font-bold text-emerald-700">PKR {cashAmount.toLocaleString()}</span>
               </div>
 
-              <div className="flex justify-between items-center text-slate-700">
-                <span>خریداریاں نقد ادا کیں:</span>
-                <span className="font-mono font-bold text-rose-600">- PKR {todayPurchasesTotal.cashPaid.toLocaleString()}</span>
-              </div>
+              {branchCashExpenses > 0 && (
+                <div className="flex justify-between items-center text-rose-800 bg-rose-50/70 p-2 rounded-xl border border-rose-200">
+                  <span className="font-semibold">دکان کے روزانہ اخراجات (خرچہ):</span>
+                  <span className="font-mono font-bold text-rose-700">- PKR {branchCashExpenses.toLocaleString()}</span>
+                </div>
+              )}
+
+              {todayPurchasesTotal.cashPaid > 0 && (
+                <div className="flex justify-between items-center text-slate-700">
+                  <span>خریداریاں نقد ادا کیں:</span>
+                  <span className="font-mono font-bold text-rose-600">- PKR {todayPurchasesTotal.cashPaid.toLocaleString()}</span>
+                </div>
+              )}
 
               {remittedCashTotal > 0 && (
                 <div className="flex justify-between items-center bg-emerald-50/80 p-2 rounded-xl text-emerald-950 border border-emerald-200">
@@ -1552,7 +1578,7 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
               <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-sm font-bold text-emerald-800">
                 <span>گلے میں خالص کیش باقی:</span>
                 <span className="font-mono text-base font-black">
-                  PKR {Math.max(0, cashAmount - todayPurchasesTotal.cashPaid - remittedCashTotal).toLocaleString()}
+                  PKR {Math.max(0, cashAmount - todayPurchasesTotal.cashPaid - remittedCashTotal - branchCashExpenses).toLocaleString()}
                 </span>
               </div>
             </div>

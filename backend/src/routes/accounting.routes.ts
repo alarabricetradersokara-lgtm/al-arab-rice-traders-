@@ -4,12 +4,14 @@ import {
   createCashAccount,
   getBankAccounts,
   createBankAccount,
+  deleteBankAccount,
   getCashTransfers,
   createCashTransfer,
   reverseCashTransfer,
   getExpenses,
   createExpense,
   reverseExpense,
+  deleteExpense,
   getOtherIncomes,
   createOtherIncome,
   reverseOtherIncome,
@@ -34,6 +36,7 @@ router.get('/cash-accounts', requirePermission('accounts:view'), getCashAccounts
 router.post('/cash-accounts', requirePermission('accounts:manage'), createCashAccount);
 router.get('/bank-accounts', requirePermission('accounts:view'), getBankAccounts);
 router.post('/bank-accounts', requirePermission('accounts:manage'), createBankAccount);
+router.delete('/bank-accounts/:id', requirePermission('accounts:manage'), deleteBankAccount);
 
 // Cash & Bank Transfers
 router.get('/transfers', requirePermission('accounts:view'), getCashTransfers);
@@ -44,6 +47,7 @@ router.post('/transfers/:id/reverse', requirePermission('accounts:manage'), reve
 router.get('/expenses', requirePermission('accounts:view'), getExpenses);
 router.post('/expenses', requirePermission('payments:manage'), createExpense);
 router.post('/expenses/:id/reverse', requirePermission('payments:manage'), reverseExpense);
+router.delete('/expenses/:id', requirePermission('payments:manage'), deleteExpense);
 
 // Other Incomes
 router.get('/incomes', requirePermission('accounts:view'), getOtherIncomes);

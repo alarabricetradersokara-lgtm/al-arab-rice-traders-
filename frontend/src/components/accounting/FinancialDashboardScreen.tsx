@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Button } from '../common/Button';
 import {
   CashAccount,
   BankAccount,
@@ -18,6 +19,7 @@ import { BalanceSheetModal } from './BalanceSheetModal';
 import { CashBookModal } from './CashBookModal';
 import { BankBookModal } from './BankBookModal';
 import { GeneralLedgerModal } from './GeneralLedgerModal';
+import { CreateBankAccountModal } from './CreateBankAccountModal';
 import {
   DollarSign,
   TrendingUp,
@@ -66,9 +68,21 @@ export const FinancialDashboardScreen: React.FC = () => {
   const [isCashBookOpen, setIsCashBookOpen] = useState(false);
   const [isBankBookOpen, setIsBankBookOpen] = useState(false);
   const [isGeneralLedgerOpen, setIsGeneralLedgerOpen] = useState(false);
+  const [isCreateBankOpen, setIsCreateBankOpen] = useState(false);
 
   // Reversal state
   const [reversingId, setReversingId] = useState<string | null>(null);
+
+  const handleDeleteBank = async (id: string, name: string) => {
+    if (window.confirm(`کیا آپ واقعی بینک کھاتہ "${name}" کو حذف کرنا چاہتے ہیں؟`)) {
+      try {
+        await accountingService.deleteBankAccount(id);
+        loadAllData();
+      } catch (err: any) {
+        alert(err.response?.data?.message || err.message || 'بینک اکاؤنٹ ڈیلیٹ کرنے میں خرابی ہوئی۔');
+      }
+    }
+  };
 
   const loadAllData = async () => {
     try {
@@ -800,31 +814,77 @@ export const FinancialDashboardScreen: React.FC = () => {
             </div>
 
             <div>
-              <h3 className="text-sm font-bold text-[#172B25] uppercase tracking-wider mb-3">Bank Accounts</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {bankAccounts.map((b) => (
-                  <div key={b.id} className="p-4 bg-white border border-[#E4EAE5] rounded-xl shadow-2xs flex justify-between items-center">
-                    <div>
-                      <span className="font-mono text-xs text-slate-400">[{b.code}]</span>
-                      <h4 className="text-base font-bold text-[#172B25]">{b.bankName}</h4>
-                      <p className="text-xs text-slate-600 font-mono">A/C: {b.accountNumber}</p>
-                      {b.iban && <p className="text-[10px] text-slate-400 font-mono">IBAN: {b.iban}</p>}
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs text-slate-500">Available Balance</span>
-                      <p className="text-lg font-extrabold text-blue-900 font-mono">
-                        Rs {Number(b.currentBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-[#172B25] uppercase tracking-wider">
+                  Bank Accounts (بینک کھاتے)
+                </h3>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => setIsCreateBankOpen(true)}
+                  leftIcon={<Plus className="w-3.5 h-3.5" />}
+                  className="bg-blue-700 hover:bg-blue-600 font-bold text-xs"
+                >
+                  + نیا بینک اکاؤنٹ درج کریں
+                </Button>
               </div>
+
+              {bankAccounts.length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-300 rounded-2xl">
+                  <Landmark className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-xs font-semibold text-slate-600">ابھی کوئی بینک اکاؤنٹ درج نہیں ہے۔</p>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => setIsCreateBankOpen(true)}
+                    className="mt-3 bg-blue-700 hover:bg-blue-600 font-bold text-xs"
+                  >
+                    + پہلا بینک اکاؤنٹ شامل کریں
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {bankAccounts.map((b) => (
+                    <div key={b.id} className="p-4 bg-white border border-[#E4EAE5] rounded-xl shadow-2xs flex justify-between items-center">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs text-slate-400">[{b.code}]</span>
+                          <h4 className="text-base font-bold text-[#172B25]">{b.bankName}</h4>
+                        </div>
+                        <p className="text-xs text-slate-600 font-mono">A/C: {b.accountNumber}</p>
+                        {b.branchName && <p className="text-[11px] text-slate-500 font-medium">{b.branchName}</p>}
+                        {b.iban && <p className="text-[10px] text-slate-400 font-mono">IBAN: {b.iban}</p>}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs text-slate-500">Available Balance</span>
+                        <p className="text-lg font-extrabold text-blue-900 font-mono">
+                          Rs {Number(b.currentBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteBank(b.id, b.bankName)}
+                          className="text-[10px] text-red-500 hover:text-red-700 hover:underline mt-1 font-semibold cursor-pointer block ml-auto"
+                        >
+                          حذف کریں (Delete)
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
       </div>
 
       {/* Modals */}
+      <CreateBankAccountModal
+        isOpen={isCreateBankOpen}
+        onClose={() => setIsCreateBankOpen(false)}
+        onSuccess={() => {
+          loadAllData();
+        }}
+      />
       <ExpenseModal
         isOpen={isExpenseModalOpen}
         onClose={() => setIsExpenseModalOpen(false)}
