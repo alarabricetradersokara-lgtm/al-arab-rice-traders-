@@ -59,7 +59,7 @@ export const PurchaseInvoiceModal: React.FC<PurchaseInvoiceModalProps> = ({
                 </div>
               </div>
               <p className="text-[11px] text-[#718078] mt-2">
-                GT Road Rice Market, Kamoke / Gujranwala • Tel: +92 (55) 612-8899 • NTN: 8921473-1
+                مرکزی دکان، اناج مارکیٹ، مانسہرہ | ہیڈ آفس: اوکاڑہ • فون: 0300-1234567
               </p>
             </div>
 

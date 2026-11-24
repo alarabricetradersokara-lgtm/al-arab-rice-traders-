@@ -107,8 +107,8 @@ export const PartyStatementModal: React.FC<PartyStatementModalProps> = ({
       `*Recent Ledger Entries:*\n` +
       `${recentLines || 'No recent entries'}\n` +
       `-------------------------------------------\n` +
-      `Al Arab Rice Traders • GT Road Rice Market, Kamoke / Gujranwala\n` +
-      `Helpline: +92 (55) 612-8899`;
+      `العرب رائز ٹریڈرز • اناج مارکیٹ، مانسہرہ / اوکاڑہ\n` +
+      `رابطہ: 0300-1234567`;
 
     const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
@@ -176,7 +176,7 @@ export const PartyStatementModal: React.FC<PartyStatementModalProps> = ({
                 </div>
               </div>
               <p className="text-[10px] text-[#718078] mt-1.5">
-                GT Road Rice Market, Kamoke / Gujranwala • Tel: +92 (55) 612-8899
+                مرکزی دکان، اناج مارکیٹ، مانسہرہ | ہیڈ آفس: اوکاڑہ • فون: 0300-1234567
               </p>
             </div>
 

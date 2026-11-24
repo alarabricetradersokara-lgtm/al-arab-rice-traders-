@@ -47,7 +47,7 @@ export const DailyClosingReportModal: React.FC<DailyClosingReportModalProps> = (
             <p className="text-xs text-[#718078] font-medium mt-0.5">
               {company?.businessType || 'Rice Millers, Commission Agents & Exporters'}
             </p>
-            <p className="text-xs text-[#718078]">{company?.address || 'G.T. Road, Kamoke, Gujranwala'}</p>
+            <p className="text-xs text-[#718078]">{company?.address || 'مرکزی دکان، اناج مارکیٹ، مانسہرہ | ہیڈ آفس: اوکاڑہ'}</p>
             <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-[#E8F5E9] text-[#087A55] rounded-full text-xs font-bold border border-[#A7F3D0]">
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>OFFICIAL DAILY CLOSING REPORT · {entry.status}</span>

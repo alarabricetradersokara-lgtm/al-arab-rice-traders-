@@ -9,10 +9,10 @@ export const getCompanySettings = async (req: Request, res: Response, next: Next
     if (!settings) {
       settings = await prisma.companySettings.create({
         data: {
-          companyName: 'AL ARAB RICE TRADERS',
-          businessType: 'Rice Millers, Commission Agents & Exporters',
-          address: 'G.T. Road, Kamoke, Gujranwala, Pakistan',
-          phone: '+92-55-1122334',
+          companyName: 'العرب رائز ٹریڈرز (AL ARAB RICE TRADERS)',
+          businessType: 'Rice Traders & Commission Agents',
+          address: 'مرکزی دکان و گودام، اناج مارکیٹ، مانسہرہ | ہیڈ آفس: اوکاڑہ',
+          phone: '+92-300-1234567',
           email: 'info@alarabricetraders.com',
           taxNumber: '1849204-7',
           currency: 'PKR',
