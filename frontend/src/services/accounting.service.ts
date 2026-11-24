@@ -42,6 +42,20 @@ export const accountingService = {
   deleteBankAccount: async (id: string): Promise<void> => {
     await api.delete(`/accounting/bank-accounts/${id}`);
   },
+  updateBankAccount: async (
+    id: string,
+    data: {
+      bankName?: string;
+      accountNumber?: string;
+      branchName?: string;
+      iban?: string;
+      openingBalance?: number;
+      currentBalance?: number;
+    }
+  ): Promise<BankAccount> => {
+    const res = await api.put(`/accounting/bank-accounts/${id}`, data);
+    return res.data.data;
+  },
 
   // Transfers
   getTransfers: async (params?: { startDate?: string; endDate?: string; status?: string }): Promise<CashTransfer[]> => {

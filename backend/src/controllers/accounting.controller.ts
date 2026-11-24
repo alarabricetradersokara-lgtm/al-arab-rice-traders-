@@ -118,6 +118,34 @@ export const createBankAccount = async (req: Request, res: Response, next: NextF
   }
 };
 
+export const updateBankAccount = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const { bankName, accountNumber, branchName, iban, currentBalance, openingBalance } = req.body;
+    const existing = await prisma.bankAccount.findUnique({ where: { id } });
+    if (!existing) {
+      throw new AppError('Bank account not found', 404);
+    }
+
+    const data: any = {};
+    if (bankName !== undefined) data.bankName = bankName.trim();
+    if (accountNumber !== undefined) data.accountNumber = accountNumber.trim();
+    if (branchName !== undefined) data.branchName = branchName.trim();
+    if (iban !== undefined) data.iban = iban ? iban.trim() : null;
+    if (currentBalance !== undefined) data.currentBalance = new Decimal(currentBalance);
+    else if (openingBalance !== undefined) data.currentBalance = new Decimal(openingBalance);
+
+    const updated = await prisma.bankAccount.update({
+      where: { id },
+      data,
+    });
+
+    sendSuccess(res, updated, 'Bank account updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const deleteBankAccount = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const id = req.params.id as string;

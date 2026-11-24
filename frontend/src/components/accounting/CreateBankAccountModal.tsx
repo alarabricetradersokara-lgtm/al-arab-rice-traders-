@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { accountingService } from '../../services/accounting.service';
 import { BankAccount } from '../../types/accounting';
-import { Landmark, Building2, CreditCard, DollarSign } from 'lucide-react';
 
 interface CreateBankAccountModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (newAccount: BankAccount) => void;
+  onSuccess: (savedAccount: BankAccount) => void;
+  accountToEdit?: BankAccount | null;
 }
 
 const COMMON_PAKISTANI_BANKS = [
@@ -30,6 +30,7 @@ export const CreateBankAccountModal: React.FC<CreateBankAccountModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  accountToEdit = null,
 }) => {
   const [bankName, setBankName] = useState('');
   const [customBankName, setCustomBankName] = useState('');
@@ -37,9 +38,37 @@ export const CreateBankAccountModal: React.FC<CreateBankAccountModalProps> = ({
   const [accountTitle, setAccountTitle] = useState('');
   const [branchName, setBranchName] = useState('');
   const [iban, setIban] = useState('');
-  const [openingBalance, setOpeningBalance] = useState<number | ''>(0);
+  const [balance, setBalance] = useState<number | ''>(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (accountToEdit) {
+        if (COMMON_PAKISTANI_BANKS.includes(accountToEdit.bankName)) {
+          setBankName(accountToEdit.bankName);
+          setCustomBankName('');
+        } else {
+          setBankName('OTHER');
+          setCustomBankName(accountToEdit.bankName);
+        }
+        setAccountNumber(accountToEdit.accountNumber || '');
+        setBranchName(accountToEdit.branchName || '');
+        setAccountTitle('');
+        setIban(accountToEdit.iban || '');
+        setBalance(Number(accountToEdit.currentBalance) || 0);
+      } else {
+        setBankName('');
+        setCustomBankName('');
+        setAccountNumber('');
+        setAccountTitle('');
+        setBranchName('');
+        setIban('');
+        setBalance(0);
+      }
+      setError(null);
+    }
+  }, [isOpen, accountToEdit]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,37 +85,59 @@ export const CreateBankAccountModal: React.FC<CreateBankAccountModalProps> = ({
     try {
       setIsLoading(true);
       setError(null);
-      const created = await accountingService.createBankAccount({
-        bankName: finalBank,
-        accountNumber: accountNumber.trim(),
-        branchName: branchName.trim() || (accountTitle.trim() ? `Title: ${accountTitle.trim()}` : 'Main Branch'),
-        iban: iban.trim() || undefined,
-        openingBalance: Number(openingBalance) || 0,
-      });
 
-      onSuccess(created);
+      const resolvedBranch =
+        branchName.trim() ||
+        (accountTitle.trim() ? `Title: ${accountTitle.trim()}` : 'Main Branch');
+
+      let saved: BankAccount;
+      if (accountToEdit) {
+        saved = await accountingService.updateBankAccount(accountToEdit.id, {
+          bankName: finalBank,
+          accountNumber: accountNumber.trim(),
+          branchName: resolvedBranch,
+          iban: iban.trim() || undefined,
+          currentBalance: Number(balance) || 0,
+        });
+      } else {
+        saved = await accountingService.createBankAccount({
+          bankName: finalBank,
+          accountNumber: accountNumber.trim(),
+          branchName: resolvedBranch,
+          iban: iban.trim() || undefined,
+          openingBalance: Number(balance) || 0,
+        });
+      }
+
+      onSuccess(saved);
       onClose();
-      // Reset
-      setBankName('');
-      setCustomBankName('');
-      setAccountNumber('');
-      setAccountTitle('');
-      setBranchName('');
-      setIban('');
-      setOpeningBalance(0);
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'بینک اکاؤنٹ بنانے میں غلطی ہوئی۔');
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          'بینک اکاؤنٹ محفوظ کرنے میں غلطی ہوئی۔'
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
+  const isEditMode = Boolean(accountToEdit);
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="نیا بینک اکاؤنٹ درج کریں (Add Bank Account)"
-      subtitle="کاروباری لین دین اور ترسیل کے لیے نیا بینک کھاتہ رجسٹر کریں"
+      title={
+        isEditMode
+          ? 'بینک اکاؤنٹ تبدیل کریں (Edit Bank Account)'
+          : 'نیا بینک اکاؤنٹ درج کریں (Add Bank Account)'
+      }
+      subtitle={
+        isEditMode
+          ? 'بینک کا نام، اکاؤنٹ نمبر یا برانچ کی تفصیلات تبدیل کریں'
+          : 'کاروباری لین دین اور ترسیل کے لیے نیا بینک کھاتہ رجسٹر کریں'
+      }
       maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -177,15 +228,15 @@ export const CreateBankAccountModal: React.FC<CreateBankAccountModalProps> = ({
 
           <div>
             <label className="text-xs font-bold text-slate-800 block mb-1">
-              ابتدائی بیلنس (Opening PKR)
+              {isEditMode ? 'موجودہ بیلنس (Balance PKR)' : 'ابتدائی بیلنس (Opening PKR)'}
             </label>
             <input
               type="number"
               step="any"
               min="0"
               placeholder="0"
-              value={openingBalance}
-              onChange={(e) => setOpeningBalance(e.target.value ? parseFloat(e.target.value) : '')}
+              value={balance}
+              onChange={(e) => setBalance(e.target.value ? parseFloat(e.target.value) : '')}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-emerald-800 focus:bg-white focus:ring-2 focus:ring-emerald-700/20 outline-none"
             />
           </div>
@@ -208,8 +259,13 @@ export const CreateBankAccountModal: React.FC<CreateBankAccountModalProps> = ({
           <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
             منسوخ کریں
           </Button>
-          <Button type="submit" variant="primary" isLoading={isLoading} className="bg-emerald-700 hover:bg-emerald-600 font-bold text-xs">
-            بینک محفوظ کریں (Save Bank)
+          <Button
+            type="submit"
+            variant="primary"
+            isLoading={isLoading}
+            className="bg-emerald-700 hover:bg-emerald-600 font-bold text-xs"
+          >
+            {isEditMode ? 'تبدیلیاں محفوظ کریں (Update)' : 'بینک محفوظ کریں (Save Bank)'}
           </Button>
         </div>
       </form>

@@ -12,6 +12,7 @@ import {
   Truck,
   Users,
   DollarSign,
+  Landmark,
   Factory,
   Globe,
   ArrowLeftRight,
@@ -123,9 +124,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     },
     {
       id: 'accounting' as NavTab,
-      labelUrdu: 'مالی اکاؤنٹس',
-      labelEn: 'Cash, Ledger & P&L',
-      icon: <DollarSign className="w-4 h-4" />,
+      labelUrdu: 'مالی اکاؤنٹس و بینک',
+      labelEn: 'Cash & Bank Accounts',
+      icon: <Landmark className="w-4 h-4" />,
+      badge: 'بینک کھاتے',
+      badgeColor: 'bg-blue-100 text-blue-800 border-blue-200',
       enabled: hasPermission('accounts:view'),
     },
   ];

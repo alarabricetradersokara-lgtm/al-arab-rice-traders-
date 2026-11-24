@@ -4,6 +4,7 @@ import {
   createCashAccount,
   getBankAccounts,
   createBankAccount,
+  updateBankAccount,
   deleteBankAccount,
   getCashTransfers,
   createCashTransfer,
@@ -36,6 +37,7 @@ router.get('/cash-accounts', requirePermission('accounts:view'), getCashAccounts
 router.post('/cash-accounts', requirePermission('accounts:manage'), createCashAccount);
 router.get('/bank-accounts', requirePermission('accounts:view'), getBankAccounts);
 router.post('/bank-accounts', requirePermission('accounts:manage'), createBankAccount);
+router.put('/bank-accounts/:id', requirePermission('accounts:manage'), updateBankAccount);
 router.delete('/bank-accounts/:id', requirePermission('accounts:manage'), deleteBankAccount);
 
 // Cash & Bank Transfers

@@ -38,6 +38,8 @@ import {
   Search,
   Filter,
   Eye,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 
 export const FinancialDashboardScreen: React.FC = () => {
@@ -69,6 +71,7 @@ export const FinancialDashboardScreen: React.FC = () => {
   const [isBankBookOpen, setIsBankBookOpen] = useState(false);
   const [isGeneralLedgerOpen, setIsGeneralLedgerOpen] = useState(false);
   const [isCreateBankOpen, setIsCreateBankOpen] = useState(false);
+  const [selectedBankToEdit, setSelectedBankToEdit] = useState<BankAccount | null>(null);
 
   // Reversal state
   const [reversingId, setReversingId] = useState<string | null>(null);
@@ -211,6 +214,16 @@ export const FinancialDashboardScreen: React.FC = () => {
 
         {/* Quick Transaction Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => {
+              setSelectedBankToEdit(null);
+              setIsCreateBankOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
+          >
+            <Landmark className="w-4 h-4" />
+            + نیا بینک اکاؤنٹ (Add Bank)
+          </button>
           <button
             onClick={() => setIsExpenseModalOpen(true)}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
@@ -464,7 +477,7 @@ export const FinancialDashboardScreen: React.FC = () => {
                 : 'border-transparent text-[#718078] hover:text-[#172B25]'
             }`}
           >
-            Accounts Directory ({cashAccounts.length + bankAccounts.length})
+            بینک و کیش کھاتے (Bank Accounts) ({bankAccounts.length})
           </button>
         </div>
 
@@ -821,7 +834,10 @@ export const FinancialDashboardScreen: React.FC = () => {
                 <Button
                   size="sm"
                   variant="primary"
-                  onClick={() => setIsCreateBankOpen(true)}
+                  onClick={() => {
+                    setSelectedBankToEdit(null);
+                    setIsCreateBankOpen(true);
+                  }}
                   leftIcon={<Plus className="w-3.5 h-3.5" />}
                   className="bg-blue-700 hover:bg-blue-600 font-bold text-xs"
                 >
@@ -836,7 +852,10 @@ export const FinancialDashboardScreen: React.FC = () => {
                   <Button
                     size="sm"
                     variant="primary"
-                    onClick={() => setIsCreateBankOpen(true)}
+                    onClick={() => {
+                      setSelectedBankToEdit(null);
+                      setIsCreateBankOpen(true);
+                    }}
                     className="mt-3 bg-blue-700 hover:bg-blue-600 font-bold text-xs"
                   >
                     + پہلا بینک اکاؤنٹ شامل کریں
@@ -860,13 +879,29 @@ export const FinancialDashboardScreen: React.FC = () => {
                         <p className="text-lg font-extrabold text-blue-900 font-mono">
                           Rs {Number(b.currentBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </p>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteBank(b.id, b.bankName)}
-                          className="text-[10px] text-red-500 hover:text-red-700 hover:underline mt-1 font-semibold cursor-pointer block ml-auto"
-                        >
-                          حذف کریں (Delete)
-                        </button>
+                        <div className="flex items-center gap-2 mt-2 justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedBankToEdit(b);
+                              setIsCreateBankOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1 text-[11px] text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer"
+                            title="ترمیم کریں"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            ترمیم (Edit)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteBank(b.id, b.bankName)}
+                            className="inline-flex items-center gap-1 text-[11px] text-rose-700 bg-rose-50 hover:bg-rose-100 px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer"
+                            title="حذف کریں"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            حذف (Delete)
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -880,9 +915,15 @@ export const FinancialDashboardScreen: React.FC = () => {
       {/* Modals */}
       <CreateBankAccountModal
         isOpen={isCreateBankOpen}
-        onClose={() => setIsCreateBankOpen(false)}
+        accountToEdit={selectedBankToEdit}
+        onClose={() => {
+          setIsCreateBankOpen(false);
+          setSelectedBankToEdit(null);
+        }}
         onSuccess={() => {
           loadAllData();
+          setIsCreateBankOpen(false);
+          setSelectedBankToEdit(null);
         }}
       />
       <ExpenseModal
