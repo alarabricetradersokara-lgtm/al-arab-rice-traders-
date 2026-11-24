@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
-import { RiceCategory, Warehouse, GrainVariety, GrainGrade } from '../../types/inventory';
+import { Warehouse } from '../../types/inventory';
 import { inventoryService } from '../../services/inventory.service';
+import { Sparkles, Calculator } from 'lucide-react';
 
 interface CreateProductModalProps {
   isOpen: boolean;
   onClose: () => void;
-  categories: RiceCategory[];
+  categories?: any[];
   warehouses: Warehouse[];
   onSuccess: () => void;
 }
@@ -15,59 +16,60 @@ interface CreateProductModalProps {
 export const CreateProductModal: React.FC<CreateProductModalProps> = ({
   isOpen,
   onClose,
-  categories,
   warehouses,
   onSuccess,
 }) => {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
-  const [categoryId, setCategoryId] = useState('');
-  const [variety, setVariety] = useState<GrainVariety>('BASMATI_1121_KAINAT');
-  const [grade, setGrade] = useState<GrainGrade>('STEAM');
-  const [baseUnit, setBaseUnit] = useState('KG');
   const [defaultBagWeightKg, setDefaultBagWeightKg] = useState('50.0');
   const [costPricePerKg, setCostPricePerKg] = useState('240.0');
   const [salePricePerKg, setSalePricePerKg] = useState('275.0');
-  const [reorderLevelKg, setReorderLevelKg] = useState('3000.0');
+  const [reorderLevelKg, setReorderLevelKg] = useState('1000.0');
 
   // Optional opening stock
   const [withOpeningStock, setWithOpeningStock] = useState(false);
-  const [initialWarehouseId, setInitialWarehouseId] = useState('');
+  const [initialWarehouseId, setInitialWarehouseId] = useState(warehouses[0]?.id || '');
   const [initialBags, setInitialBags] = useState('');
+  const [initialLooseKg, setInitialLooseKg] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Computed opening stock
+  const bagWt = parseFloat(defaultBagWeightKg) || 50;
+  const numBags = parseInt(initialBags, 10) || 0;
+  const numLoose = parseFloat(initialLooseKg) || 0;
+  const computedOpeningKg = numBags * bagWt + numLoose;
+  const computedOpeningMaunds = (computedOpeningKg / 40).toFixed(2);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!name || !code || !categoryId) {
-      setError('Product Name, SKU code, and Category are required');
+    if (!name.trim()) {
+      setError('براہ کرم چاول کا نام درج کریں۔');
       return;
     }
 
     try {
       setIsLoading(true);
       await inventoryService.createProduct({
-        name,
-        code,
-        categoryId,
-        variety,
-        grade,
-        baseUnit,
-        defaultBagWeightKg: parseFloat(defaultBagWeightKg) || 50,
+        name: name.trim(),
+        code: code.trim() || undefined, // Backend auto-assigns sequence code (AR-001, AR-002...) if undefined
+        defaultBagWeightKg: bagWt,
         costPricePerKg: parseFloat(costPricePerKg) || 0,
         salePricePerKg: parseFloat(salePricePerKg) || 0,
         reorderLevelKg: parseFloat(reorderLevelKg) || 1000,
-        initialWarehouseId: withOpeningStock ? initialWarehouseId : undefined,
-        initialBags: withOpeningStock && initialBags ? parseInt(initialBags, 10) : undefined,
+        initialWarehouseId: withOpeningStock ? (initialWarehouseId || warehouses[0]?.id) : undefined,
+        initialBags: withOpeningStock && numBags > 0 ? numBags : undefined,
+        initialLooseKg: withOpeningStock && numLoose > 0 ? numLoose : undefined,
+        initialWeightKg: withOpeningStock && computedOpeningKg > 0 ? computedOpeningKg : undefined,
       });
 
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to create rice product');
+      setError(err.response?.data?.message || err.message || 'چاول ورائٹی محفوظ کرنے میں غلطی ہوئی۔');
     } finally {
       setIsLoading(false);
     }
@@ -77,216 +79,196 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Register New Rice Variety"
-      subtitle="Define quality specifications, standard packaging and pricing formula"
-      maxWidth="xl"
+      title="نیا چاول ورائٹی رجسٹر کریں (Register Rice Variety)"
+      subtitle="سادہ و آسان اندراج: نام، وزن، ریٹ اور افتتاحی اسٹاک درج کریں"
+      maxWidth="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="p-3 bg-[#FEE2E2] text-[#DC2626] border border-[#FECACA] rounded-xl text-xs font-semibold">
+          <div className="p-3 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold">
             {error}
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-bold text-[#172B25] block mb-1">
-              Variety Commercial Name *
+        {/* Variety Name & Auto-SKU */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="sm:col-span-2">
+            <label className="text-xs font-bold text-slate-800 block mb-1">
+              چاول کا نام (Variety Name) *
             </label>
             <input
               type="text"
               required
-              placeholder="e.g. 1121 Kainat Steam Basmati"
+              placeholder="مثلاً 1121 کائنات سٹیم یا سپر کرنل باسمتی"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-[#F5F7F5] border border-[#E4EAE5] rounded-lg px-3 py-2 text-sm text-[#172B25] focus:outline-hidden focus:ring-2 focus:ring-[#087A55]/30 focus:border-[#087A55]"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-700/20 focus:border-emerald-700 outline-none"
             />
           </div>
 
           <div>
-            <label className="text-xs font-bold text-[#172B25] block mb-1">
-              SKU / Product Code *
+            <label className="text-xs font-bold text-slate-800 block mb-1">
+              SKU کوڈ (Code)
             </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. RICE-1121-STM"
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              className="w-full bg-[#F5F7F5] border border-[#E4EAE5] rounded-lg px-3 py-2 text-sm text-[#172B25] font-mono focus:outline-hidden focus:ring-2 focus:ring-[#087A55]/30 focus:border-[#087A55]"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="خودکار (Auto Assigned)"
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-700/20 outline-none"
+              />
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">
+                تسلسل سے
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-400 block mt-0.5">
+              خالی چھوڑیں تو سسٹم خود (AR-001) نمبر دے گا
+            </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Packaging and Rates */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
           <div>
-            <label className="text-xs font-bold text-[#172B25] block mb-1">Category *</label>
-            <select
-              required
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full bg-[#F5F7F5] border border-[#E4EAE5] rounded-lg px-3 py-2 text-sm text-[#172B25] focus:outline-hidden focus:ring-2 focus:ring-[#087A55]/30 cursor-pointer"
-            >
-              <option value="">Select Category</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-[#172B25] block mb-1">Grain Variety *</label>
-            <select
-              value={variety}
-              onChange={(e) => setVariety(e.target.value as GrainVariety)}
-              className="w-full bg-[#F5F7F5] border border-[#E4EAE5] rounded-lg px-3 py-2 text-sm text-[#172B25] focus:outline-hidden focus:ring-2 focus:ring-[#087A55]/30 cursor-pointer"
-            >
-              <option value="SUPER_KERNEL_BASMATI">Super Kernel Basmati</option>
-              <option value="BASMATI_1121_KAINAT">1121 Kainat Basmati</option>
-              <option value="BASMATI_385">Basmati 385</option>
-              <option value="IRRI_6">IRRI-6 Coarse</option>
-              <option value="IRRI_9">IRRI-9 Long Grain</option>
-              <option value="PK_386">PK-386 Fragrant</option>
-              <option value="RAW_PADDY_DHAN">Raw Paddy / Munji</option>
-              <option value="BROKEN_RICE_TOTA">Broken Rice (Tota)</option>
-              <option value="RICE_BRAN_PHAK">Rice Bran (Phak)</option>
-              <option value="RICE_HUSK_BHOOSA">Rice Husk (Bhoosa)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-[#172B25] block mb-1">Processing Grade</label>
-            <select
-              value={grade}
-              onChange={(e) => setGrade(e.target.value as GrainGrade)}
-              className="w-full bg-[#F5F7F5] border border-[#E4EAE5] rounded-lg px-3 py-2 text-sm text-[#172B25] focus:outline-hidden focus:ring-2 focus:ring-[#087A55]/30 cursor-pointer"
-            >
-              <option value="RAW_WHITE">Raw White (Kacha)</option>
-              <option value="STEAM">Steam Processed</option>
-              <option value="SELLA_PARBOILED">Sella Parboiled</option>
-              <option value="BROWN">Brown Rice (Cargo)</option>
-              <option value="SECOND_GRADE">Second Grade</option>
-              <option value="COMMERCIAL">Commercial Mix</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-[#F5F7F5] rounded-xl border border-[#E4EAE5]">
-          <div>
-            <label className="text-xs font-semibold text-[#718078] block mb-1">
-              Std Bag Packaging
+            <label className="text-xs font-bold text-slate-700 block mb-1">
+              معیاری بوری کا وزن (Bag Weight)
             </label>
             <div className="relative">
               <input
                 type="number"
                 step="0.5"
+                required
                 value={defaultBagWeightKg}
                 onChange={(e) => setDefaultBagWeightKg(e.target.value)}
-                className="w-full bg-white border border-[#E4EAE5] rounded-lg pl-3 pr-8 py-2 text-sm font-bold text-[#172B25]"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-700/20 outline-none"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#718078]">Kg</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Kg</span>
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-[#718078] block mb-1">
-              Cost Rate / Kg (PKR)
-            </label>
-            <input
-              type="number"
-              step="0.5"
-              value={costPricePerKg}
-              onChange={(e) => setCostPricePerKg(e.target.value)}
-              className="w-full bg-white border border-[#E4EAE5] rounded-lg px-3 py-2 text-sm font-bold text-[#172B25]"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-[#718078] block mb-1">
-              Sale Rate / Kg (PKR)
-            </label>
-            <input
-              type="number"
-              step="0.5"
-              value={salePricePerKg}
-              onChange={(e) => setSalePricePerKg(e.target.value)}
-              className="w-full bg-white border border-[#E4EAE5] rounded-lg px-3 py-2 text-sm font-bold text-[#087A55]"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-[#718078] block mb-1">
-              Min Reorder Buffer
+            <label className="text-xs font-bold text-slate-700 block mb-1">
+              خریداری ریٹ فی کلو (Cost / Kg)
             </label>
             <div className="relative">
               <input
                 type="number"
-                value={reorderLevelKg}
-                onChange={(e) => setReorderLevelKg(e.target.value)}
-                className="w-full bg-white border border-[#E4EAE5] rounded-lg pl-3 pr-8 py-2 text-sm font-bold text-[#172B25]"
+                step="any"
+                value={costPricePerKg}
+                onChange={(e) => setCostPricePerKg(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-700/20 outline-none"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#718078]">Kg</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400">PKR</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">
+              فروخت ریٹ فی کلو (Sale / Kg) *
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                step="any"
+                required
+                value={salePricePerKg}
+                onChange={(e) => setSalePricePerKg(e.target.value)}
+                className="w-full bg-white border border-emerald-300 rounded-xl px-3 py-2 text-sm font-mono font-bold text-emerald-800 focus:ring-2 focus:ring-emerald-700/20 outline-none"
+              />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-emerald-700">PKR</span>
             </div>
           </div>
         </div>
 
-        {/* Optional Initial Stock Section */}
-        <div className="p-4 border border-[#E4EAE5] rounded-xl space-y-3">
+        {/* Optional Opening Stock with Bags + Loose KG */}
+        <div className="p-4 bg-white border border-emerald-200 rounded-2xl shadow-xs space-y-3">
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={withOpeningStock}
               onChange={(e) => setWithOpeningStock(e.target.checked)}
-              className="w-4 h-4 text-[#087A55] rounded-sm focus:ring-[#087A55]"
+              className="w-4 h-4 text-emerald-700 rounded-md focus:ring-emerald-700"
             />
-            <span className="text-xs font-bold text-[#172B25]">
-              Initialize Opening Physical Stock Now
+            <span className="text-xs font-bold text-slate-900">
+              دکان میں پہلے سے موجود اسٹاک درج کریں (Add Opening Stock Now)
             </span>
           </label>
 
           {withOpeningStock && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-              <div>
-                <label className="text-xs font-semibold text-[#718078] block mb-1">Godown</label>
-                <select
-                  required={withOpeningStock}
-                  value={initialWarehouseId}
-                  onChange={(e) => setInitialWarehouseId(e.target.value)}
-                  className="w-full bg-[#F5F7F5] border border-[#E4EAE5] rounded-lg px-3 py-1.5 text-xs text-[#172B25]"
-                >
-                  <option value="">Select Godown</option>
-                  {warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name}
-                    </option>
-                  ))}
-                </select>
+            <div className="space-y-3 pt-2 border-t border-slate-100 animate-in fade-in">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    گودام / شاپ (Location)
+                  </label>
+                  <select
+                    value={initialWarehouseId}
+                    onChange={(e) => setInitialWarehouseId(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none"
+                  >
+                    {warehouses.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    کل بوریاں (Opening Bags)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="مثلاً 500"
+                    value={initialBags}
+                    onChange={(e) => setInitialBags(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-bold text-slate-900 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-emerald-900 block mb-1">
+                    کھلا چاول (Loose KGs)
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder="مثلاً 35 کلو"
+                    value={initialLooseKg}
+                    onChange={(e) => setInitialLooseKg(e.target.value)}
+                    className="w-full bg-emerald-50/70 border border-emerald-300 rounded-xl px-3 py-2 text-sm font-mono font-bold text-emerald-950 outline-none focus:ring-2 focus:ring-emerald-700/20"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-[#718078] block mb-1">
-                  Opening Bags ({defaultBagWeightKg} kg each)
-                </label>
-                <input
-                  type="number"
-                  placeholder="e.g. 500"
-                  value={initialBags}
-                  onChange={(e) => setInitialBags(e.target.value)}
-                  className="w-full bg-[#F5F7F5] border border-[#E4EAE5] rounded-lg px-3 py-1.5 text-xs text-[#172B25] font-bold"
-                />
-              </div>
+              {/* Realtime Calculation Display */}
+              {computedOpeningKg > 0 && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 text-emerald-900 font-bold">
+                    <Calculator className="w-4 h-4 text-emerald-700" />
+                    <span>
+                      کل افتتاحی اسٹاک: {numBags} بوریاں ({bagWt} کلو والی) + {numLoose} کلو کھلا
+                    </span>
+                  </div>
+                  <div className="font-mono font-black text-sm text-emerald-900">
+                    {computedOpeningKg.toLocaleString()} Kg (~ {computedOpeningMaunds} من)
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E4EAE5]">
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
+        <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+            منسوخ کریں
           </Button>
-          <Button type="submit" variant="primary" isLoading={isLoading}>
-            Confirm & Save Variety
+          <Button type="submit" variant="primary" isLoading={isLoading} className="bg-emerald-700 hover:bg-emerald-600 font-bold text-sm">
+            چاول محفوظ کریں (Save Rice Variety)
           </Button>
         </div>
       </form>

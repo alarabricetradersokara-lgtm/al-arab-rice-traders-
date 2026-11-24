@@ -23,6 +23,7 @@ export const OpeningStockModal: React.FC<OpeningStockModalProps> = ({
   const [productId, setProductId] = useState('');
   const [warehouseId, setWarehouseId] = useState('');
   const [bagCount, setBagCount] = useState<number | ''>('');
+  const [looseKg, setLooseKg] = useState<number | ''>('');
   const [bagWeightKg, setBagWeightKg] = useState<number | ''>(50.0);
   const [unitCostPerKg, setUnitCostPerKg] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
@@ -41,11 +42,11 @@ export const OpeningStockModal: React.FC<OpeningStockModalProps> = ({
     }
   }, [productId, products]);
 
-  // Calculations
-  const calculatedWeightKg =
-    typeof bagCount === 'number' && typeof bagWeightKg === 'number'
-      ? bagCount * bagWeightKg
-      : 0;
+  // Calculations: (Bags * Bag Weight) + Loose KGs
+  const bags = typeof bagCount === 'number' ? bagCount : 0;
+  const bagWt = typeof bagWeightKg === 'number' ? bagWeightKg : 50;
+  const loose = typeof looseKg === 'number' ? looseKg : 0;
+  const calculatedWeightKg = (bags * bagWt) + loose;
   const calculatedMaunds = (calculatedWeightKg / 40).toFixed(2);
   const calculatedValuation =
     typeof unitCostPerKg === 'number' ? (calculatedWeightKg * unitCostPerKg).toFixed(2) : '0.00';
@@ -54,8 +55,8 @@ export const OpeningStockModal: React.FC<OpeningStockModalProps> = ({
     e.preventDefault();
     setError(null);
 
-    if (!productId || !warehouseId || !bagCount || !unitCostPerKg) {
-      setError('Please fill in all mandatory fields');
+    if (!productId || !warehouseId || calculatedWeightKg <= 0 || !unitCostPerKg) {
+      setError('براہ کرم چاول، گودام، بوریاں یا کھلا وزن اور لاگت ریٹ درج کریں۔');
       return;
     }
 
@@ -64,16 +65,16 @@ export const OpeningStockModal: React.FC<OpeningStockModalProps> = ({
       await inventoryService.createOpeningStock({
         productId,
         warehouseId,
-        bagCount: Number(bagCount),
+        bagCount: bags,
         weightKg: calculatedWeightKg,
         unitCostPerKg: Number(unitCostPerKg),
-        notes,
+        notes: notes ? `${notes} (بوریاں: ${bags} + کھلا: ${loose} کلو)` : `افتتاحی اسٹاک: ${bags} بوریاں + ${loose} کلو کھلا چاول`,
       });
 
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Failed to record opening stock');
+      setError(err.response?.data?.message || err.message || 'افتتاحی اسٹاک درج کرنے میں غلطی ہوئی۔');
     } finally {
       setIsLoading(false);
     }
@@ -134,24 +135,39 @@ export const OpeningStockModal: React.FC<OpeningStockModalProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-[#F5F7F5] rounded-xl border border-[#E4EAE5]">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
           <div>
-            <label className="text-xs font-semibold text-[#718078] block mb-1">
-              Bag Quantity *
+            <label className="text-xs font-bold text-slate-800 block mb-1">
+              کل بوریاں (Bags)
             </label>
             <input
               type="number"
-              required
-              placeholder="e.g. 500"
+              min="0"
+              placeholder="مثلاً 500"
               value={bagCount}
               onChange={(e) => setBagCount(e.target.value ? parseInt(e.target.value, 10) : '')}
-              className="w-full bg-white border border-[#E4EAE5] rounded-lg px-3 py-2 text-sm font-bold text-[#172B25]"
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-bold text-slate-900 outline-none"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-[#718078] block mb-1">
-              Weight Per Bag (Kg)
+            <label className="text-xs font-bold text-emerald-900 block mb-1">
+              کھلا چاول (Loose KGs)
+            </label>
+            <input
+              type="number"
+              step="any"
+              min="0"
+              placeholder="مثلاً 30 کلو"
+              value={looseKg}
+              onChange={(e) => setLooseKg(e.target.value ? parseFloat(e.target.value) : '')}
+              className="w-full bg-emerald-50/60 border border-emerald-300 rounded-xl px-3 py-2 text-sm font-mono font-bold text-emerald-950 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">
+              وزن فی بوری (Kg)
             </label>
             <input
               type="number"
@@ -159,22 +175,22 @@ export const OpeningStockModal: React.FC<OpeningStockModalProps> = ({
               required
               value={bagWeightKg}
               onChange={(e) => setBagWeightKg(e.target.value ? parseFloat(e.target.value) : '')}
-              className="w-full bg-white border border-[#E4EAE5] rounded-lg px-3 py-2 text-sm font-bold text-[#172B25]"
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-bold text-slate-900 outline-none"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-[#718078] block mb-1">
-              Cost Rate / Kg (PKR) *
+            <label className="text-xs font-bold text-slate-700 block mb-1">
+              لاگت ریٹ فی کلو (PKR) *
             </label>
             <input
               type="number"
               step="0.5"
               required
-              placeholder="e.g. 240.0"
+              placeholder="مثلاً 240.0"
               value={unitCostPerKg}
               onChange={(e) => setUnitCostPerKg(e.target.value ? parseFloat(e.target.value) : '')}
-              className="w-full bg-white border border-[#E4EAE5] rounded-lg px-3 py-2 text-sm font-bold text-[#087A55]"
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-bold text-emerald-800 outline-none"
             />
           </div>
         </div>

@@ -83,8 +83,8 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
       code,
       name,
       categoryId,
-      variety,
-      grade = 'RAW_WHITE',
+      variety = 'BASMATI_1121_KAINAT',
+      grade = 'STEAM',
       baseUnit = 'KG',
       defaultBagWeightKg = 50.0,
       supportsMaund = true,
@@ -94,20 +94,45 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
       reorderLevelKg = 1000.0,
       initialWarehouseId,
       initialBags,
+      initialLooseKg,
       initialWeightKg,
     } = req.body;
 
-    const existing = await prisma.riceProduct.findUnique({ where: { code } });
-    if (existing) {
-      throw new AppError(`A rice product with SKU/code '${code}' already exists.`, 409);
+    // Auto-assign SKU code sequence-wise if not provided (e.g. AR-001, AR-002...)
+    let finalCode = (code || '').trim().toUpperCase();
+    if (!finalCode) {
+      const count = await prisma.riceProduct.count();
+      let seq = count + 1;
+      finalCode = `AR-${String(seq).padStart(3, '0')}`;
+      while (await prisma.riceProduct.findUnique({ where: { code: finalCode } })) {
+        seq++;
+        finalCode = `AR-${String(seq).padStart(3, '0')}`;
+      }
+    } else {
+      const existing = await prisma.riceProduct.findUnique({ where: { code: finalCode } });
+      if (existing) {
+        throw new AppError(`A rice product with SKU/code '${finalCode}' already exists.`, 409);
+      }
+    }
+
+    // Auto-assign default category if omitted
+    let finalCategoryId = categoryId;
+    if (!finalCategoryId) {
+      let defaultCat = await prisma.riceCategory.findFirst({ orderBy: { createdAt: 'asc' } });
+      if (!defaultCat) {
+        defaultCat = await prisma.riceCategory.create({
+          data: { name: 'چاول (Rice)', code: 'RICE', description: 'General Rice Category' },
+        });
+      }
+      finalCategoryId = defaultCat.id;
     }
 
     const result = await prisma.$transaction(async (tx) => {
       const product = await tx.riceProduct.create({
         data: {
-          code,
+          code: finalCode,
           name,
-          categoryId,
+          categoryId: finalCategoryId,
           variety,
           grade,
           baseUnit,
@@ -120,21 +145,29 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
         },
       });
 
-      // Optional opening stock on creation
-      if (initialWarehouseId && (initialBags || initialWeightKg)) {
-        const bags = parseInt(initialBags || '0', 10);
-        const weight = new Decimal(initialWeightKg || (bags * defaultBagWeightKg));
+      // Optional opening stock on creation (with Bags + Loose KGs support)
+      const bags = parseInt(initialBags || '0', 10);
+      const looseKg = parseFloat(initialLooseKg || '0');
+      const calcWeight = initialWeightKg ? new Decimal(initialWeightKg) : new Decimal(bags * defaultBagWeightKg + looseKg);
+
+      let targetWhId = initialWarehouseId;
+      if (!targetWhId && (bags > 0 || looseKg > 0 || calcWeight.greaterThan(0))) {
+        const firstWh = await tx.warehouse.findFirst({ where: { isActive: true }, orderBy: { createdAt: 'asc' } });
+        if (firstWh) targetWhId = firstWh.id;
+      }
+
+      if (targetWhId && (bags > 0 || looseKg > 0 || calcWeight.greaterThan(0))) {
         const costRate = new Decimal(costPricePerKg);
-        const totalValuation = weight.times(costRate);
+        const totalValuation = calcWeight.times(costRate);
 
         await tx.stock.create({
           data: {
-            warehouseId: initialWarehouseId,
+            warehouseId: targetWhId,
             productId: product.id,
             currentBags: bags,
-            currentWeightKg: weight,
+            currentWeightKg: calcWeight,
             availableBags: bags,
-            availableWeightKg: weight,
+            availableWeightKg: calcWeight,
             lastMovementDate: new Date(),
           },
         });
@@ -143,15 +176,15 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
           data: {
             movementNumber: `OPN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             movementType: 'OPENING_STOCK',
-            warehouseId: initialWarehouseId,
+            warehouseId: targetWhId,
             productId: product.id,
             bagCountDelta: bags,
-            weightKgDelta: weight,
+            weightKgDelta: calcWeight,
             unitCostPerKg: costRate,
             totalCost: totalValuation,
             referenceType: 'InitialOpeningStock',
             referenceId: `OPN-${product.code}`,
-            notes: `Initial opening balance on product creation`,
+            notes: `Initial opening balance on product creation: ${bags} bags + ${looseKg} kg loose`,
             createdById: (req as any).user?.id || null,
           },
         });

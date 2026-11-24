@@ -26,6 +26,8 @@ import {
   TrendingUp,
   BookOpen,
   Info,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface PurchaseEntryScreenProps {
@@ -81,7 +83,8 @@ export const PurchaseEntryScreen: React.FC<PurchaseEntryScreenProps> = ({
   // Items Rows
   const [items, setItems] = useState<FormItemRow[]>([]);
 
-  // Deductions & Landed Cost
+  // Deductions & Landed Cost (Collapsible / Optional)
+  const [showDeductions, setShowDeductions] = useState<boolean>(false);
   const [moistureDeductionWeightKg, setMoistureDeductionWeightKg] = useState<number>(0);
   const [moistureDeductionAmount, setMoistureDeductionAmount] = useState<number>(0);
   const [kardaDeductionAmount, setKardaDeductionAmount] = useState<number>(0);
@@ -163,13 +166,13 @@ export const PurchaseEntryScreen: React.FC<PurchaseEntryScreenProps> = ({
   // Active supplier object
   const selectedSupplier = suppliers.find((s) => s.id === selectedSupplierId);
 
-  // Row update helpers
+  // Row update helpers: bi-directional calculation between bags/looseKg and netWeightKg
   const updateRow = (index: number, updates: Partial<FormItemRow>) => {
     setItems((prev) => {
       const next = [...prev];
       const current = { ...next[index], ...updates };
 
-      // Recalculate weights
+      // Recalculate weights based on product
       if ('productId' in updates) {
         const prod = products.find((p) => p.id === updates.productId);
         if (prod) {
@@ -178,23 +181,37 @@ export const PurchaseEntryScreen: React.FC<PurchaseEntryScreenProps> = ({
         }
       }
 
-      if ('bagCount' in updates || 'looseKg' in updates || 'bagWeightKg' in updates || 'grossWeightKg' in updates || 'bardanaTareKg' in updates) {
-        if (!('grossWeightKg' in updates)) {
-          const bags = current.bagCount || 0;
-          const bagWt = current.bagWeightKg || 0;
-          const loose = current.looseKg || 0;
-          current.grossWeightKg = (bags * bagWt) + loose;
-        }
+      // If user directly typed Net Weight (KG)
+      if ('netWeightKg' in updates) {
+        const net = Math.max(0, Number(updates.netWeightKg) || 0);
+        const bagWt = current.bagWeightKg > 0 ? current.bagWeightKg : 50;
+        current.bagCount = Math.floor(net / bagWt);
+        current.looseKg = Math.round((net % bagWt) * 100) / 100;
+        current.grossWeightKg = net;
+        current.bardanaTareKg = 0;
+        current.netWeightKg = net;
+      } else if ('bagCount' in updates || 'looseKg' in updates || 'bagWeightKg' in updates) {
+        // User typed bags and/or loose kg
+        const bags = current.bagCount || 0;
+        const bagWt = current.bagWeightKg > 0 ? current.bagWeightKg : 50;
+        const loose = current.looseKg || 0;
+        const gross = (bags * bagWt) + loose;
+        current.grossWeightKg = gross;
         if (current.bagCount === 0 && !('bardanaTareKg' in updates)) {
           current.bardanaTareKg = 0;
         } else if ('bagCount' in updates && !('bardanaTareKg' in updates)) {
           current.bardanaTareKg = current.bagCount * 1;
         }
-        current.netWeightKg = Math.max(0, current.grossWeightKg - (current.bardanaTareKg || 0));
+        current.netWeightKg = Math.max(0, gross - (current.bardanaTareKg || 0));
+      } else if ('grossWeightKg' in updates || 'bardanaTareKg' in updates) {
+        current.netWeightKg = Math.max(0, (current.grossWeightKg || 0) - (current.bardanaTareKg || 0));
+        const bagWt = current.bagWeightKg > 0 ? current.bagWeightKg : 50;
+        current.bagCount = Math.floor(current.netWeightKg / bagWt);
+        current.looseKg = Math.round((current.netWeightKg % bagWt) * 100) / 100;
       }
 
-      // Recalculate price
-      if ('rateInput' in updates || 'rateUnit' in updates || 'productId' in updates || 'netWeightKg' in updates) {
+      // Recalculate price and total
+      if ('rateInput' in updates || 'rateUnit' in updates || 'productId' in updates || 'netWeightKg' in updates || 'bagCount' in updates || 'looseKg' in updates || 'grossWeightKg' in updates) {
         if (current.rateUnit === 'MAUND') {
           current.unitPricePerKg = current.rateInput / 40;
         } else {
@@ -491,11 +508,11 @@ export const PurchaseEntryScreen: React.FC<PurchaseEntryScreenProps> = ({
                         <select
                           value={row.productId}
                           onChange={(e) => updateRow(index, { productId: e.target.value })}
-                          className="w-full px-2 py-1.5 text-xs border border-[#E4EAE5] bg-white rounded-lg focus:border-[#087A55] outline-none"
+                          className="w-full px-2 py-1.5 text-xs border border-[#E4EAE5] bg-white rounded-lg focus:border-[#087A55] outline-none font-medium"
                         >
                           {products.map((p) => (
                             <option key={p.id} value={p.id}>
-                              {p.name} ({p.variety} - {p.grade})
+                              {p.name} ({p.code})
                             </option>
                           ))}
                         </select>
@@ -568,9 +585,20 @@ export const PurchaseEntryScreen: React.FC<PurchaseEntryScreenProps> = ({
                         />
                       </td>
 
-                      {/* Net Weight */}
-                      <td className="py-2 px-2 text-right font-mono font-bold text-[#087A55]">
-                        {row.netWeightKg.toLocaleString()} kg
+                      {/* Net Weight (Direct Entry or Auto-Calculated) */}
+                      <td className="py-2 px-2 text-right">
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          value={row.netWeightKg === 0 ? '' : row.netWeightKg}
+                          placeholder="0"
+                          title="خالص وزن براہ راست درج کریں (یا بوریاں اور کھلا چاول لکھیں)"
+                          onChange={(e) =>
+                            updateRow(index, { netWeightKg: parseFloat(e.target.value) || 0 })
+                          }
+                          className="w-full text-right px-2 py-1.5 text-xs border border-emerald-400 bg-emerald-50/30 rounded-lg font-mono font-bold text-[#087A55] outline-none focus:ring-1 focus:ring-emerald-600"
+                        />
                       </td>
 
                       {/* Maunds */}
@@ -644,112 +672,137 @@ export const PurchaseEntryScreen: React.FC<PurchaseEntryScreenProps> = ({
           </div>
         </Card>
 
-        {/* Step 3: Mandi Deductions & Landed Cost Breakdown */}
+        {/* Step 3: Mandi Deductions & Landed Cost Breakdown (Collapsible & Optional) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
-            <div className="p-4 border-b border-[#E4EAE5] bg-[#F5F7F5] flex justify-between items-center">
+            <div
+              onClick={() => setShowDeductions(!showDeductions)}
+              className="p-4 border-b border-[#E4EAE5] bg-[#F5F7F5] flex justify-between items-center cursor-pointer hover:bg-[#EEF2EF] transition-colors select-none"
+            >
               <span className="text-xs font-bold uppercase tracking-wider text-[#172B25] flex items-center gap-2">
-                <Scale className="w-4 h-4 text-[#087A55]" /> 3. Mandi Deductions & Quality Cuts
+                <Scale className="w-4 h-4 text-[#087A55]" /> 3. منڈی کٹوتی اور کرایہ (Mandi Deductions - اختیاری)
               </span>
-              <span className="text-[10px] text-[#718078]">Deducted from Arthi Payable</span>
+              <div className="flex items-center gap-1.5 text-xs text-[#087A55] font-semibold">
+                <span>{showDeductions ? 'چھپائیں' : 'کھولیں'}</span>
+                {showDeductions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </div>
             </div>
 
-            <div className="p-4 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+            {!showDeductions ? (
+              <div className="p-4 text-xs text-[#718078] flex items-center justify-between">
                 <div>
-                  <label className="block text-xs font-semibold text-[#172B25] mb-1">
-                    Moisture Cut (Weight in KG)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={moistureDeductionWeightKg}
-                    onChange={(e) => setMoistureDeductionWeightKg(parseFloat(e.target.value) || 0)}
-                    placeholder="0 kg"
-                    className="w-full px-3 py-2 text-xs border border-[#E4EAE5] rounded-xl outline-none font-mono"
-                  />
+                  <p className="font-semibold text-[#172B25]">کوئی کٹوتی لاگو نہیں (ڈیفالٹ: صاف وزن)</p>
+                  <p className="text-[11px] text-[#718078] mt-0.5">
+                    اگر نمی کاٹ، کردھا، آڑھت کمیشن یا کرایہ شامل کرنا ہو تو یہاں کلک کریں۔
+                  </p>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-[#172B25] mb-1">
-                    Moisture Cut Amount (PKR)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={moistureDeductionAmount}
-                    onChange={(e) => setMoistureDeductionAmount(parseFloat(e.target.value) || 0)}
-                    placeholder="PKR 0.00"
-                    className="w-full px-3 py-2 text-xs border border-[#E4EAE5] rounded-xl outline-none font-mono text-red-600"
-                  />
-                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDeductions(true)}
+                >
+                  کٹوتی کھولیں
+                </Button>
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-[#172B25] mb-1">
-                    Karda / Broken Grain Deduction (PKR)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={kardaDeductionAmount}
-                    onChange={(e) => setKardaDeductionAmount(parseFloat(e.target.value) || 0)}
-                    placeholder="PKR 0.00"
-                    className="w-full px-3 py-2 text-xs border border-[#E4EAE5] rounded-xl outline-none font-mono text-red-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-[#172B25] mb-1">
-                    Arthi Commission % (e.g. 1.0%)
-                  </label>
-                  <div className="relative">
+            ) : (
+              <div className="p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#172B25] mb-1">
+                      Moisture Cut (Weight in KG)
+                    </label>
                     <input
                       type="number"
                       step="0.1"
-                      value={commissionRatePercent}
-                      onChange={(e) => setCommissionRatePercent(parseFloat(e.target.value) || 0)}
-                      placeholder="0.0%"
+                      value={moistureDeductionWeightKg}
+                      onChange={(e) => setMoistureDeductionWeightKg(parseFloat(e.target.value) || 0)}
+                      placeholder="0 kg"
                       className="w-full px-3 py-2 text-xs border border-[#E4EAE5] rounded-xl outline-none font-mono"
                     />
-                    <span className="absolute right-3 top-2 text-xs text-[#718078] font-bold">
-                      = PKR {Math.round(calculatedCommission).toLocaleString()}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#172B25] mb-1">
+                      Moisture Cut Amount (PKR)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={moistureDeductionAmount}
+                      onChange={(e) => setMoistureDeductionAmount(parseFloat(e.target.value) || 0)}
+                      placeholder="PKR 0.00"
+                      className="w-full px-3 py-2 text-xs border border-[#E4EAE5] rounded-xl outline-none font-mono text-red-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#172B25] mb-1">
+                      Karda / Broken Grain Deduction (PKR)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={kardaDeductionAmount}
+                      onChange={(e) => setKardaDeductionAmount(parseFloat(e.target.value) || 0)}
+                      placeholder="PKR 0.00"
+                      className="w-full px-3 py-2 text-xs border border-[#E4EAE5] rounded-xl outline-none font-mono text-red-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#172B25] mb-1">
+                      Arthi Commission % (e.g. 1.0%)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={commissionRatePercent}
+                        onChange={(e) => setCommissionRatePercent(parseFloat(e.target.value) || 0)}
+                        placeholder="0.0%"
+                        className="w-full px-3 py-2 text-xs border border-[#E4EAE5] rounded-xl outline-none font-mono"
+                      />
+                      <span className="absolute right-3 top-2 text-xs text-[#718078] font-bold">
+                        = PKR {Math.round(calculatedCommission).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[#E4EAE5]">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#172B25] mb-1">
+                      Palledari / Labor Handling (PKR)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={palledariAmount}
+                      onChange={(e) => setPalledariAmount(parseFloat(e.target.value) || 0)}
+                      placeholder="PKR 0.00"
+                      className="w-full px-3 py-2 text-xs border border-[#E4EAE5] rounded-xl outline-none font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#172B25] mb-1">
+                      Freight / Bilty Cartage (PKR)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={freightAmount}
+                      onChange={(e) => setFreightAmount(parseFloat(e.target.value) || 0)}
+                      placeholder="PKR 0.00"
+                      className="w-full px-3 py-2 text-xs border border-[#E4EAE5] rounded-xl outline-none font-mono text-[#087A55]"
+                    />
+                    <span className="text-[10px] text-[#718078] block mt-0.5">
+                      *Attributed to landed stock valuation
                     </span>
                   </div>
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[#E4EAE5]">
-                <div>
-                  <label className="block text-xs font-semibold text-[#172B25] mb-1">
-                    Palledari / Labor Handling (PKR)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={palledariAmount}
-                    onChange={(e) => setPalledariAmount(parseFloat(e.target.value) || 0)}
-                    placeholder="PKR 0.00"
-                    className="w-full px-3 py-2 text-xs border border-[#E4EAE5] rounded-xl outline-none font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-[#172B25] mb-1">
-                    Freight / Bilty Cartage (PKR)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={freightAmount}
-                    onChange={(e) => setFreightAmount(parseFloat(e.target.value) || 0)}
-                    placeholder="PKR 0.00"
-                    className="w-full px-3 py-2 text-xs border border-[#E4EAE5] rounded-xl outline-none font-mono text-[#087A55]"
-                  />
-                  <span className="text-[10px] text-[#718078] block mt-0.5">
-                    *Attributed to landed stock valuation
-                  </span>
-                </div>
-              </div>
-            </div>
+            )}
           </Card>
 
           {/* Step 4: Settlement Terms & Final Posting */}

@@ -190,10 +190,8 @@ export const StockOverviewMatrix: React.FC<StockOverviewMatrixProps> = ({
                       <div className="font-bold text-[#172B25] group-hover:text-[#087A55] transition-colors">
                         {stock.product.name}
                       </div>
-                      <div className="text-xs font-mono text-[#718078] flex items-center gap-2">
-                        <span>{stock.product.code}</span>
-                        <span>•</span>
-                        <span>{stock.product.category}</span>
+                      <div className="text-xs font-mono font-bold text-emerald-800">
+                        {stock.product.code}
                       </div>
                     </td>
                     <td className="py-3.5 px-4 font-medium text-xs text-[#172B25]">
