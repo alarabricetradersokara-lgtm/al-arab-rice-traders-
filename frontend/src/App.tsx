@@ -36,6 +36,7 @@ import { WarehouseTransfersScreen } from './components/transfers/WarehouseTransf
 import { FeatureSettingsModal } from './components/settings/FeatureSettingsModal';
 import { MainDashboardScreen } from './components/dashboard/MainDashboardScreen';
 import { BusinessReportsScreen } from './components/reports/BusinessReportsScreen';
+import { OwnerDispatchLedgerScreen } from './components/owner/OwnerDispatchLedgerScreen';
 import { UserManagementScreen } from './components/admin/UserManagementScreen';
 import { AuditLogsScreen } from './components/admin/AuditLogsScreen';
 import { ChangePasswordModal } from './components/auth/ChangePasswordModal';
@@ -340,6 +341,14 @@ function AppContent() {
             />
           )}
 
+          {/* TAB: Owner Dispatch & Investment Ledger (اوکاڑہ ⟷ مانسہرہ سرمایہ کھاتہ) */}
+          {activeTab === 'owner-dispatch' && (
+            <OwnerDispatchLedgerScreen
+              productsCatalog={products as any}
+              showToast={showToast}
+            />
+          )}
+
           {/* TAB 2: Purchases & Procurement (MANDI WORKFLOW) */}
           {activeTab === 'purchases' && (
             <>
@@ -495,12 +504,7 @@ function AppContent() {
             />
           )}
 
-          {/* TAB 8: Operator & User Management (Admin only) */}
-          {activeTab === 'users' && (
-            <UserManagementScreen onToast={showToast} />
-          )}
-
-          {/* TAB 9: Immutable Audit Trail & Compliance (Admin only) */}
+          {/* TAB: Immutable Audit Trail & Compliance (Admin only) */}
           {activeTab === 'audit' && (
             <AuditLogsScreen onToast={showToast} />
           )}

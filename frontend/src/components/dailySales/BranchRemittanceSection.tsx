@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Clock,
   DollarSign,
+  Edit2,
   FileText,
   Landmark,
   MessageCircle,
@@ -59,6 +60,7 @@ export const BranchRemittanceSection: React.FC<BranchRemittanceSectionProps> = (
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form State
+  const [editingRemittanceId, setEditingRemittanceId] = useState<string | null>(null);
   const [mode, setMode] = useState<'CASH' | 'BANK'>('CASH');
   const [amount, setAmount] = useState<number | ''>('');
   const [selectedBankId, setSelectedBankId] = useState<string>('');
@@ -187,37 +189,82 @@ export const BranchRemittanceSection: React.FC<BranchRemittanceSectionProps> = (
         console.warn('Backend transfer failed or offline, recording in client register:', apiErr);
       }
 
-      const newRecord: RemittanceRecord = {
-        id: 'REM-' + Date.now(),
-        date: selectedDate,
-        mode,
-        amount: numAmount,
-        bankAccountId: mode === 'BANK' ? selectedBankId : undefined,
-        bankName: mode === 'BANK' ? activeBank?.bankName || 'Meezan Bank' : undefined,
-        accountNumber: mode === 'BANK' ? activeBank?.accountNumber || '' : undefined,
-        cashAccountId: mode === 'CASH' ? selectedCashId : undefined,
-        cashAccountName: mode === 'CASH' ? activeCash?.name || 'اوکاڑہ مین کیش' : undefined,
-        referenceNumber: referenceNumber.trim() || (mode === 'CASH' ? 'نقد سلپ' : 'آن لائن ٹرانسفر'),
-        driverOrSender: driverOrSender.trim() || 'مانسہرہ برانچ',
-        notes: notes.trim(),
-        createdAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      };
+      if (editingRemittanceId) {
+        const updated = remittances.map((r) => {
+          if (r.id !== editingRemittanceId) return r;
+          return {
+            ...r,
+            mode,
+            amount: numAmount,
+            bankAccountId: mode === 'BANK' ? selectedBankId : undefined,
+            bankName: mode === 'BANK' ? activeBank?.bankName || r.bankName : undefined,
+            accountNumber: mode === 'BANK' ? activeBank?.accountNumber || r.accountNumber : undefined,
+            cashAccountId: mode === 'CASH' ? selectedCashId : undefined,
+            cashAccountName: mode === 'CASH' ? activeCash?.name || r.cashAccountName : undefined,
+            referenceNumber: referenceNumber.trim() || r.referenceNumber,
+            driverOrSender: driverOrSender.trim() || r.driverOrSender,
+            notes: notes.trim(),
+          };
+        });
+        saveRemittancesToStorage(updated);
+        handleCancelEdit();
+        showToast(`وصولی اینٹری میں ترمیم کامیابی سے محفوظ ہو گئی۔`);
+      } else {
+        const newRecord: RemittanceRecord = {
+          id: 'REM-' + Date.now(),
+          date: selectedDate,
+          mode,
+          amount: numAmount,
+          bankAccountId: mode === 'BANK' ? selectedBankId : undefined,
+          bankName: mode === 'BANK' ? activeBank?.bankName || 'Meezan Bank' : undefined,
+          accountNumber: mode === 'BANK' ? activeBank?.accountNumber || '' : undefined,
+          cashAccountId: mode === 'CASH' ? selectedCashId : undefined,
+          cashAccountName: mode === 'CASH' ? activeCash?.name || 'اوکاڑہ مین کیش' : undefined,
+          referenceNumber: referenceNumber.trim() || (mode === 'CASH' ? 'نقد سلپ' : 'آن لائن ٹرانسفر'),
+          driverOrSender: driverOrSender.trim() || 'مانسہرہ برانچ',
+          notes: notes.trim(),
+          createdAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        };
 
-      const updated = [newRecord, ...remittances];
-      saveRemittancesToStorage(updated);
+        const updated = [newRecord, ...remittances];
+        saveRemittancesToStorage(updated);
 
-      // Reset form
-      setAmount('');
-      setReferenceNumber('');
-      setDriverOrSender('');
-      setNotes('');
+        // Reset form
+        setAmount('');
+        setReferenceNumber('');
+        setDriverOrSender('');
+        setNotes('');
 
-      showToast(`مانسہرہ سے PKR ${numAmount.toLocaleString()} کی وصولی کامیابی سے محفوظ ہو گئی۔`);
+        showToast(`مانسہرہ سے PKR ${numAmount.toLocaleString()} کی وصولی کامیابی سے محفوظ ہو گئی۔`);
+      }
     } catch (err: any) {
       showToast('رقم محفوظ کرنے میں غلطی ہوئی۔ دوبارہ کوشش کریں۔');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleStartEdit = (rem: RemittanceRecord) => {
+    setEditingRemittanceId(rem.id);
+    setMode(rem.mode);
+    setAmount(rem.amount);
+    if (rem.mode === 'BANK' && rem.bankAccountId) {
+      setSelectedBankId(rem.bankAccountId);
+    }
+    if (rem.mode === 'CASH' && rem.cashAccountId) {
+      setSelectedCashId(rem.cashAccountId);
+    }
+    setReferenceNumber(rem.referenceNumber);
+    setDriverOrSender(rem.driverOrSender);
+    setNotes(rem.notes || '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRemittanceId(null);
+    setAmount('');
+    setReferenceNumber('');
+    setDriverOrSender('');
+    setNotes('');
   };
 
   // Add New Bank Account
@@ -363,12 +410,31 @@ export const BranchRemittanceSection: React.FC<BranchRemittanceSectionProps> = (
         <div className="lg:col-span-5 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-5">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-              <Plus className="w-4 h-4 text-emerald-700" />
-              <span>نئی رقم وصولی درج کریں</span>
+              {editingRemittanceId ? (
+                <>
+                  <Edit2 className="w-4 h-4 text-blue-700" />
+                  <span>وصولی اینٹری میں ترمیم کریں</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 text-emerald-700" />
+                  <span>نئی رقم وصولی درج کریں</span>
+                </>
+              )}
             </h3>
-            <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-              سادہ انٹری
-            </span>
+            {editingRemittanceId ? (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="text-[11px] font-bold text-rose-600 hover:text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 cursor-pointer"
+              >
+                منسوخ کریں ✕
+              </button>
+            ) : (
+              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                سادہ انٹری
+              </span>
+            )}
           </div>
 
           <form onSubmit={handleSaveRemittance} className="space-y-4">
@@ -587,15 +653,37 @@ export const BranchRemittanceSection: React.FC<BranchRemittanceSectionProps> = (
             </div>
 
             {/* Submit Button */}
-            <Button
-              type="submit"
-              variant="primary"
-              isLoading={isSubmitting}
-              className="w-full py-3.5 text-sm font-bold bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl shadow-xs"
-              leftIcon={<CheckCircle2 className="w-4 h-4" />}
-            >
-              وصولی محفوظ کریں (Save Remittance)
-            </Button>
+            {editingRemittanceId ? (
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  isLoading={isSubmitting}
+                  className="py-3 text-sm font-bold bg-blue-700 hover:bg-blue-600 text-white rounded-xl shadow-xs"
+                  leftIcon={<CheckCircle2 className="w-4 h-4" />}
+                >
+                  تبدیلی محفوظ کریں
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleCancelEdit}
+                  className="py-3 text-sm font-bold rounded-xl"
+                >
+                  منسوخ کریں
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="submit"
+                variant="primary"
+                isLoading={isSubmitting}
+                className="w-full py-3.5 text-sm font-bold bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl shadow-xs"
+                leftIcon={<CheckCircle2 className="w-4 h-4" />}
+              >
+                وصولی محفوظ کریں (Save Remittance)
+              </Button>
+            )}
           </form>
         </div>
 
@@ -701,6 +789,15 @@ export const BranchRemittanceSection: React.FC<BranchRemittanceSectionProps> = (
                         >
                           <MessageCircle className="w-3.5 h-3.5 text-emerald-700" />
                           <span>واٹس ایپ رسید</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(rem)}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                          title="اینٹری میں ترمیم کریں"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
                         </button>
 
                         <button

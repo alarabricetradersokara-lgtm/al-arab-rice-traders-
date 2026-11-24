@@ -31,6 +31,7 @@ export type NavTab =
   | 'dashboard'
   | 'reports'
   | 'daily-sales'
+  | 'owner-dispatch'
   | 'purchases'
   | 'parties'
   | 'accounting'
@@ -43,7 +44,6 @@ export type NavTab =
   | 'opening-stock'
   | 'movements'
   | 'alerts'
-  | 'users'
   | 'audit';
 
 interface AppSidebarProps {
@@ -95,6 +95,15 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       badge: 'مال آیا/بکا',
       badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
       enabled: hasPermission('sales:create'),
+    },
+    {
+      id: 'owner-dispatch' as NavTab,
+      labelUrdu: 'اوکاڑہ مال روانگی کھاتہ',
+      labelEn: 'Okara Dispatch & Capital',
+      icon: <Truck className="w-4 h-4" />,
+      badge: 'اونر کھاتہ',
+      badgeColor: 'bg-blue-100 text-blue-800 border-blue-200',
+      enabled: true,
     },
     {
       id: 'parties' as NavTab,
@@ -182,13 +191,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
   // Admin & Security
   const adminSecurityItems = [
-    {
-      id: 'users' as NavTab,
-      labelUrdu: 'صارفین و اختیارات',
-      labelEn: 'User Roles & Logins',
-      icon: <Shield className="w-4 h-4" />,
-      enabled: hasPermission('users:manage') || isSuperAdminOrAdmin,
-    },
     {
       id: 'audit' as NavTab,
       labelUrdu: 'سیکیورٹی آڈٹ لاگ',
