@@ -321,7 +321,7 @@ function AppContent() {
         <main className="flex-1 p-3 sm:p-5 lg:p-8 pb-32 md:pb-12 max-w-7xl mx-auto w-full space-y-4 sm:space-y-6 overflow-x-hidden">
           {/* TAB 0: Main Business Intelligence Dashboard */}
           {activeTab === 'dashboard' && (
-            <MainDashboardScreen />
+            <MainDashboardScreen onNavigateTab={(t) => setActiveTab(t as any)} />
           )}
 
           {/* TAB: Comprehensive Business Intelligence Reports */}

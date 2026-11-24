@@ -19,6 +19,7 @@ import {
   Wallet,
   Clock,
   Layers,
+  Landmark,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -47,7 +48,11 @@ import {
 import { exportToExcel, printReportDocument } from '../../utils/exportUtils';
 import { ensureAuthenticated } from '../../services/api';
 
-export const MainDashboardScreen: React.FC = () => {
+interface MainDashboardScreenProps {
+  onNavigateTab?: (tab: string) => void;
+}
+
+export const MainDashboardScreen: React.FC<MainDashboardScreenProps> = ({ onNavigateTab }) => {
   const [filter, setFilter] = useState<'today' | 'yesterday' | 'week' | 'month' | 'custom'>('today');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -436,6 +441,34 @@ export const MainDashboardScreen: React.FC = () => {
                 <Building2 className="w-5 h-5" />
               </div>
             </div>
+          </div>
+
+          {/* Quick Action: Mansehra Branch Remittance (کیش / بینک وصولی) */}
+          <div className="bg-linear-to-r from-emerald-800 via-slate-900 to-emerald-950 p-4 sm:p-5 rounded-2xl text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-emerald-300 border border-white/15 shrink-0 shadow-xs">
+                <Landmark className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>مانسہرہ برانچ سے کیش و بینک وصولی (Branch Remittance)</span>
+                  <span className="text-[10px] bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-400/30">
+                    اوکاڑہ ہیڈ آفس
+                  </span>
+                </h4>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  مانسہرہ دکان کی فروخت سے روزانہ کا نقد کیش (بذریعہ ڈرائیور) یا بینک ٹرانسفر یہاں سے درج کریں
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => onNavigateTab ? onNavigateTab('daily-sales') : undefined}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer shrink-0"
+            >
+              <span>روپیہ وصولی لکھیں</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}

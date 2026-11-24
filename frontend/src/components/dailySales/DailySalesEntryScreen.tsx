@@ -14,6 +14,7 @@ import type { Supplier } from '../../types/party';
 import { dailySalesService } from '../../services/dailySales.service';
 import { purchaseService } from '../../services/purchase.service';
 import { partyService } from '../../services/party.service';
+import { BranchRemittanceSection } from './BranchRemittanceSection';
 import {
   Calendar,
   Warehouse as WarehouseIcon,
@@ -37,6 +38,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   TrendingUp,
+  Landmark,
 } from 'lucide-react';
 
 interface DailySalesEntryScreenProps {
@@ -74,8 +76,8 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
     new Date().toISOString().split('T')[0]
   );
 
-  // Active Tab for Night Entry: Sales vs Purchases vs Galla
-  const [activeTab, setActiveTab] = useState<'SALES' | 'PURCHASES' | 'GALLA'>('SALES');
+  // Active Tab for Night Entry: Sales vs Purchases vs Remittance vs Galla
+  const [activeTab, setActiveTab] = useState<'SALES' | 'PURCHASES' | 'REMITTANCE' | 'GALLA'>('SALES');
 
   const [sheetData, setSheetData] = useState<DailySalesSheetResponse | null>(null);
   const [suppliersList, setSuppliersList] = useState<Supplier[]>([]);
@@ -88,7 +90,7 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
   const [productSearch, setProductSearch] = useState('');
 
   // Form State for Daily Sales (Mal Bika)
-  const [linesMap, setLinesMap] = useState<Record<string, { bagCount: number; looseKg: number; weightKg: number; ratePerKg: number }>>({});
+  const [linesMap, setLinesMap] = useState<Record<string, { bagCount: number; looseKg: number; weightKg: number; ratePerKg: number; targetTotal?: number }>>({});
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [commissionAmount, setCommissionAmount] = useState<number>(0);
   const [cashAmount, setCashAmount] = useState<number>(0);
@@ -96,6 +98,12 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
   const [cashAccountId, setCashAccountId] = useState<string>('');
   const [customerAllocations, setCustomerAllocations] = useState<DailySalesCustomerAllocation[]>([]);
   const [notes, setNotes] = useState<string>('');
+  const [remittedCashTotal, setRemittedCashTotal] = useState<number>(0);
+
+  // Quick Parchi Express Entry State (وزن اور کل رقم موڈ)
+  const [parchiProductId, setParchiProductId] = useState<string>('');
+  const [parchiWeightKg, setParchiWeightKg] = useState<number | ''>('');
+  const [parchiTotalPkr, setParchiTotalPkr] = useState<number | ''>('');
 
   // Quick Purchase Input State (Mal Aya)
   const [purchaseSupplierId, setPurchaseSupplierId] = useState<string>('');
@@ -228,50 +236,99 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
     }
   };
 
-  // Line Change Handlers for Sales
-  const handleBagCountChange = (productId: string, bags: number, defaultBagWeight: number) => {
+  // Line Change Handlers for Sales - Smart Bi-directional Auto Calculation
+  const handleWeightChange = (productId: string, weight: number, defaultBagWeight: number = 50) => {
     if (isConfirmed) return;
+    const safeWeight = Math.max(0, weight);
+    const bagWt = defaultBagWeight > 0 ? defaultBagWeight : 50;
+    // Auto deduct bags and loose kg from total weight
+    const autoBags = Math.floor(safeWeight / bagWt);
+    const autoLoose = Math.round((safeWeight % bagWt) * 10) / 10;
+
     setLinesMap((prev) => {
       const cur = prev[productId] || { bagCount: 0, looseKg: 0, weightKg: 0, ratePerKg: 0 };
-      const safeBags = Math.max(0, bags);
-      const loose = cur.looseKg || 0;
+      // If line total was already entered and weight > 0, auto-recalculate rate per kg
+      let newRate = cur.ratePerKg;
+      if (cur.targetTotal && cur.targetTotal > 0 && safeWeight > 0) {
+        newRate = Math.round((cur.targetTotal / safeWeight) * 100) / 100;
+      }
+      return {
+        ...prev,
+        [productId]: {
+          ...cur,
+          bagCount: autoBags,
+          looseKg: autoLoose,
+          weightKg: safeWeight,
+          ratePerKg: newRate,
+        },
+      };
+    });
+  };
+
+  const handleLineTotalChange = (productId: string, lineTotal: number) => {
+    if (isConfirmed) return;
+    const safeTotal = Math.max(0, lineTotal);
+    setLinesMap((prev) => {
+      const cur = prev[productId] || { bagCount: 0, looseKg: 0, weightKg: 0, ratePerKg: 0 };
+      let newRate = cur.ratePerKg;
+      if (cur.weightKg > 0 && safeTotal > 0) {
+        // Auto compute rate per kg = total PKR / total weight KG
+        newRate = Math.round((safeTotal / cur.weightKg) * 100) / 100;
+      }
+      return {
+        ...prev,
+        [productId]: {
+          ...cur,
+          ratePerKg: newRate,
+          targetTotal: safeTotal,
+        },
+      };
+    });
+  };
+
+  const handleBagCountChange = (productId: string, bags: number, defaultBagWeight: number = 50) => {
+    if (isConfirmed) return;
+    const safeBags = Math.max(0, bags);
+    const bagWt = defaultBagWeight > 0 ? defaultBagWeight : 50;
+
+    setLinesMap((prev) => {
+      const cur = prev[productId] || { bagCount: 0, looseKg: 0, weightKg: 0, ratePerKg: 0 };
+      const newWeight = (safeBags * bagWt) + (cur.looseKg || 0);
+      let newRate = cur.ratePerKg;
+      if (cur.targetTotal && cur.targetTotal > 0 && newWeight > 0) {
+        newRate = Math.round((cur.targetTotal / newWeight) * 100) / 100;
+      }
       return {
         ...prev,
         [productId]: {
           ...cur,
           bagCount: safeBags,
-          weightKg: (safeBags * defaultBagWeight) + loose,
+          weightKg: newWeight,
+          ratePerKg: newRate,
         },
       };
     });
   };
 
-  const handleLooseKgChange = (productId: string, loose: number, defaultBagWeight: number) => {
+  const handleLooseKgChange = (productId: string, loose: number, defaultBagWeight: number = 50) => {
     if (isConfirmed) return;
+    const safeLoose = Math.max(0, loose);
+    const bagWt = defaultBagWeight > 0 ? defaultBagWeight : 50;
+
     setLinesMap((prev) => {
       const cur = prev[productId] || { bagCount: 0, looseKg: 0, weightKg: 0, ratePerKg: 0 };
-      const safeLoose = Math.max(0, loose);
-      const bags = cur.bagCount || 0;
+      const newWeight = ((cur.bagCount || 0) * bagWt) + safeLoose;
+      let newRate = cur.ratePerKg;
+      if (cur.targetTotal && cur.targetTotal > 0 && newWeight > 0) {
+        newRate = Math.round((cur.targetTotal / newWeight) * 100) / 100;
+      }
       return {
         ...prev,
         [productId]: {
           ...cur,
           looseKg: safeLoose,
-          weightKg: (bags * defaultBagWeight) + safeLoose,
-        },
-      };
-    });
-  };
-
-  const handleWeightChange = (productId: string, weight: number) => {
-    if (isConfirmed) return;
-    setLinesMap((prev) => {
-      const cur = prev[productId] || { bagCount: 0, looseKg: 0, weightKg: 0, ratePerKg: 0 };
-      return {
-        ...prev,
-        [productId]: {
-          ...cur,
-          weightKg: Math.max(0, weight),
+          weightKg: newWeight,
+          ratePerKg: newRate,
         },
       };
     });
@@ -279,16 +336,46 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
 
   const handleRateChange = (productId: string, rate: number) => {
     if (isConfirmed) return;
+    const safeRate = Math.max(0, rate);
     setLinesMap((prev) => {
-      const cur = prev[productId] || { bagCount: 0, weightKg: 0, ratePerKg: 0 };
+      const cur = prev[productId] || { bagCount: 0, looseKg: 0, weightKg: 0, ratePerKg: 0 };
       return {
         ...prev,
         [productId]: {
           ...cur,
-          ratePerKg: Math.max(0, rate),
+          ratePerKg: safeRate,
+          targetTotal: cur.weightKg * safeRate,
         },
       };
     });
+  };
+
+  // Express Parchi Entry Applier
+  const handleApplyParchiEntry = () => {
+    if (!parchiProductId || !parchiWeightKg || !parchiTotalPkr) return;
+    const product = sheetData?.productsCatalog.find((p) => p.id === parchiProductId);
+    const bagWt = product?.defaultBagWeightKg || 50;
+    const weight = Number(parchiWeightKg);
+    const totalPkr = Number(parchiTotalPkr);
+    const autoBags = Math.floor(weight / bagWt);
+    const autoLoose = Math.round((weight % bagWt) * 10) / 10;
+    const autoRate = Math.round((totalPkr / weight) * 100) / 100;
+
+    setLinesMap((prev) => ({
+      ...prev,
+      [parchiProductId]: {
+        bagCount: autoBags,
+        looseKg: autoLoose,
+        weightKg: weight,
+        ratePerKg: autoRate,
+        targetTotal: totalPkr,
+      },
+    }));
+
+    showToast(`پرچی لاگ: ${product?.name} کے لیے ${autoBags} بوریاں (${autoLoose} kg) @ PKR ${autoRate}/kg سیٹ ہو گئے۔`);
+    setParchiProductId('');
+    setParchiWeightKg('');
+    setParchiTotalPkr('');
   };
 
   // Calculated Aggregate Totals for Sales
@@ -639,61 +726,80 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
       )}
 
       {/* Modern Segmented Navigation Tabs */}
-      <div className="flex flex-col sm:flex-row bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/80 gap-1.5 sm:gap-2">
+      <div className="grid grid-cols-2 lg:grid-cols-4 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/80 gap-1.5 sm:gap-2">
         <button
           onClick={() => setActiveTab('SALES')}
-          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
             activeTab === 'SALES'
               ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/60 font-bold'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <ShoppingCart className="w-4 h-4" />
-          <span>1. آج کا مال بکا (فروخت)</span>
+          <ShoppingCart className="w-4 h-4 shrink-0 text-emerald-700" />
+          <span className="truncate">1. مال بکا (فروخت)</span>
           <span
-            className={`px-2 py-0.5 rounded-full text-[10px] ${
+            className={`px-1.5 py-0.5 rounded-full text-[10px] shrink-0 ${
               activeTab === 'SALES' ? 'bg-emerald-100 text-emerald-800 font-bold' : 'bg-slate-200/70 text-slate-600'
             }`}
           >
-            {activeLines.length} ورائٹیز
+            {activeLines.length}
           </span>
         </button>
 
         <button
           onClick={() => setActiveTab('PURCHASES')}
-          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
             activeTab === 'PURCHASES'
               ? 'bg-white text-blue-800 shadow-xs border border-slate-200/60 font-bold'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <Truck className="w-4 h-4" />
-          <span>2. آج کا مال آیا (خریداری)</span>
+          <Truck className="w-4 h-4 shrink-0 text-blue-700" />
+          <span className="truncate">2. مال آیا (خریداری)</span>
           <span
-            className={`px-2 py-0.5 rounded-full text-[10px] ${
+            className={`px-1.5 py-0.5 rounded-full text-[10px] shrink-0 ${
               activeTab === 'PURCHASES' ? 'bg-blue-100 text-blue-800 font-bold' : 'bg-slate-200/70 text-slate-600'
             }`}
           >
-            {todayPurchases.length} لاٹس
+            {todayPurchases.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('REMITTANCE')}
+          className={`py-2.5 px-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeTab === 'REMITTANCE'
+              ? 'bg-white text-emerald-950 shadow-xs border border-slate-200/60 font-bold ring-2 ring-emerald-600/20'
+              : 'text-slate-700 hover:text-slate-900 hover:bg-white/50'
+          }`}
+        >
+          <Landmark className="w-4 h-4 shrink-0 text-emerald-700" />
+          <span className="truncate">3. مانسہرہ وصولی (کیش/بینک)</span>
+          <span
+            className={`px-1.5 py-0.5 rounded-full text-[10px] shrink-0 font-bold ${
+              activeTab === 'REMITTANCE' ? 'bg-emerald-700 text-white' : 'bg-emerald-100 text-emerald-800'
+            }`}
+          >
+            اوکاڑہ
           </span>
         </button>
 
         <button
           onClick={() => setActiveTab('GALLA')}
-          className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`py-2.5 px-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
             activeTab === 'GALLA'
               ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60 font-bold'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <Wallet className="w-4 h-4" />
-          <span>3. گلے کا حساب اور کلوزنگ</span>
+          <Wallet className="w-4 h-4 shrink-0 text-slate-700" />
+          <span className="truncate">4. گلہ و کلوزنگ</span>
           <span
-            className={`px-2 py-0.5 rounded-full text-[10px] ${
-              activeTab === 'GALLA' ? 'bg-slate-900 text-white font-bold' : 'bg-emerald-100 text-emerald-800'
+            className={`px-1.5 py-0.5 rounded-full text-[10px] shrink-0 font-mono ${
+              activeTab === 'GALLA' ? 'bg-slate-900 text-white font-bold' : 'bg-slate-200/80 text-slate-700'
             }`}
           >
-            PKR {netSalesRevenue.toLocaleString()}
+            کلوزنگ
           </span>
         </button>
       </div>
@@ -705,6 +811,114 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* LEFT: Products Quantity Sold Table (8 Cols) */}
           <div className="lg:col-span-8 space-y-4">
+            {/* Quick Parchi Express Entry Bar */}
+            <div className="bg-linear-to-r from-emerald-50 via-teal-50/40 to-white p-4 rounded-2xl border border-emerald-200/90 shadow-2xs space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-100 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-700 text-white flex items-center justify-center shadow-xs">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-emerald-950">
+                      فوری پرچی سیلز انٹری (Quick Parchi: صرف وزن اور کل رقم لکھیں)
+                    </h4>
+                    <p className="text-[10px] text-emerald-700">
+                      آپ صرف کل کلو اور کل رقم لکھیں، سسٹم بوریاں اور فی کلو ریٹ خود نکال لے گا۔
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-800 bg-white px-2.5 py-1 rounded-full border border-emerald-200 self-start sm:self-auto shadow-2xs">
+                  ⚡ آٹو بوری و ریٹ ڈیٹیکشن
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs">
+                {/* Product Selector */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    چاول ورائٹی منتخب کریں
+                  </label>
+                  <select
+                    value={parchiProductId}
+                    onChange={(e) => setParchiProductId(e.target.value)}
+                    className="w-full bg-white border border-emerald-300 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-600/20 outline-none"
+                  >
+                    <option value="">چاول منتخب کریں...</option>
+                    {sheetData?.productsCatalog.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} (سٹاک: {p.availableBags} بوری)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Weight Input */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    کل وزن بیچا (Total KG) *
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="any"
+                    placeholder="مثلاً 2500 کلو"
+                    value={parchiWeightKg}
+                    onChange={(e) => setParchiWeightKg(e.target.value ? parseFloat(e.target.value) : '')}
+                    className="w-full bg-white border border-emerald-300 rounded-xl px-3 py-2 text-xs font-bold font-mono text-slate-900 focus:ring-2 focus:ring-emerald-600/20 outline-none"
+                  />
+                </div>
+
+                {/* Total Sale PKR Input */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    کل فروخت رقم (Total PKR) *
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="any"
+                    placeholder="مثلاً 650000 روپے"
+                    value={parchiTotalPkr}
+                    onChange={(e) => setParchiTotalPkr(e.target.value ? parseFloat(e.target.value) : '')}
+                    className="w-full bg-white border border-emerald-300 rounded-xl px-3 py-2 text-xs font-bold font-mono text-slate-900 focus:ring-2 focus:ring-emerald-600/20 outline-none"
+                  />
+                </div>
+
+                {/* Action Button */}
+                <div className="flex flex-col justify-end">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={handleApplyParchiEntry}
+                    disabled={!parchiProductId || !parchiWeightKg || !parchiTotalPkr}
+                    className="w-full py-2 text-xs font-bold bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl shadow-xs"
+                    leftIcon={<Plus className="w-3.5 h-3.5" />}
+                  >
+                    لسٹ میں سیٹ کریں (Apply)
+                  </Button>
+                </div>
+              </div>
+
+              {/* Live calculation preview indicator */}
+              {Number(parchiWeightKg) > 0 && Number(parchiTotalPkr) > 0 && (
+                <div className="bg-white/90 p-2.5 rounded-xl border border-emerald-200 text-xs flex flex-wrap items-center justify-between gap-2 text-emerald-950 font-medium">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                    <span>
+                      <strong>آٹو حساب:</strong>{' '}
+                      {Math.floor(Number(parchiWeightKg) / 50)} بوریاں{' '}
+                      {Number(parchiWeightKg) % 50 > 0 ? `اور ${Number(parchiWeightKg) % 50} کلو کھلا` : ''}
+                    </span>
+                  </div>
+                  <div className="font-mono font-bold text-emerald-800">
+                    ریٹ فی کلو:{' '}
+                    PKR {(Number(parchiTotalPkr) / Number(parchiWeightKg)).toFixed(2)} / KG
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Filter and Search Bar */}
             <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between gap-4">
               <div className="relative flex-1">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -716,8 +930,8 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/20"
                 />
               </div>
-              <div className="text-xs font-medium text-slate-500 flex items-center gap-1.5 shrink-0">
-                <span>دستیاب چاول کی لسٹ</span>
+              <div className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 shrink-0">
+                💡 وزن اور رقم لکھنے سے ریٹ اور بوری خود بن جائے گی
               </div>
             </div>
 
@@ -731,9 +945,9 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                       <th className="py-3 px-3 text-right">دکان میں سٹاک</th>
                       <th className="py-3 px-3 text-right">بیچی گئی بوریاں</th>
                       <th className="py-3 px-3 text-right text-emerald-800 bg-emerald-50/60 font-bold">کھلے کلو (Loose KG)</th>
-                      <th className="py-3 px-3 text-right">کل وزن (Kg)</th>
+                      <th className="py-3 px-3 text-right bg-emerald-50/40 text-emerald-950 font-bold">کل وزن (Kg) *</th>
                       <th className="py-3 px-3 text-right">ریٹ (PKR/Kg)</th>
-                      <th className="py-3 px-3 text-right font-bold text-emerald-800">رقم (Line Total)</th>
+                      <th className="py-3 px-3 text-right bg-emerald-100/60 font-bold text-emerald-950">کل رقم (PKR Total) *</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -761,7 +975,7 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                             className={`transition-colors ${
                               isExceeded
                                 ? 'bg-red-50/60'
-                                : line.bagCount > 0 || line.looseKg > 0
+                                : line.bagCount > 0 || line.looseKg > 0 || line.weightKg > 0
                                 ? 'bg-emerald-50/20 hover:bg-emerald-50/40'
                                 : 'hover:bg-[#F5F7F5]/50'
                             }`}
@@ -771,6 +985,11 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                               <span className="text-[10px] text-[#718078]">
                                 {p.variety} • معیاری بوری: {p.defaultBagWeightKg} Kg
                               </span>
+                              {line.weightKg > 0 && line.ratePerKg > 0 && (
+                                <span className="text-[10px] text-emerald-700 font-bold mt-0.5 block">
+                                  ⚡ {line.bagCount} بوری {line.looseKg > 0 ? `+ ${line.looseKg} kg` : ''} @ PKR {line.ratePerKg}/kg
+                                </span>
+                              )}
                             </td>
 
                             <td className="py-3 px-3 text-right font-mono">
@@ -809,8 +1028,8 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                               />
                             </td>
 
-                            {/* Weight Kg Input */}
-                            <td className="py-3 px-3 text-right">
+                            {/* Weight Kg Input - Auto deduces Bags and Loose KG */}
+                            <td className="py-3 px-3 text-right bg-emerald-50/30">
                               <input
                                 type="number"
                                 min={0}
@@ -818,8 +1037,8 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                                 disabled={isConfirmed}
                                 value={line.weightKg === 0 ? '' : line.weightKg}
                                 placeholder="0"
-                                onChange={(e) => handleWeightChange(p.id, parseFloat(e.target.value || '0'))}
-                                className="w-24 bg-[#F5F7F5] border border-[#E4EAE5] rounded-xl px-2 py-1.5 text-right font-bold text-xs focus:ring-2 focus:ring-[#087A55]/30 outline-none"
+                                onChange={(e) => handleWeightChange(p.id, parseFloat(e.target.value || '0'), p.defaultBagWeightKg)}
+                                className="w-24 bg-white border border-emerald-300 rounded-xl px-2 py-1.5 text-right font-bold font-mono text-xs text-emerald-950 focus:ring-2 focus:ring-[#087A55]/30 outline-none"
                               />
                             </td>
 
@@ -833,13 +1052,22 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                                 value={line.ratePerKg === 0 ? '' : line.ratePerKg}
                                 placeholder="0"
                                 onChange={(e) => handleRateChange(p.id, parseFloat(e.target.value || '0'))}
-                                className="w-20 bg-[#F5F7F5] border border-[#E4EAE5] rounded-xl px-2 py-1.5 text-right font-bold text-xs focus:ring-2 focus:ring-[#087A55]/30 outline-none text-[#087A55]"
+                                className="w-20 bg-[#F5F7F5] border border-[#E4EAE5] rounded-xl px-2 py-1.5 text-right font-bold font-mono text-xs focus:ring-2 focus:ring-[#087A55]/30 outline-none text-[#087A55]"
                               />
                             </td>
 
-                            {/* Line Total */}
-                            <td className="py-3 px-3 text-right font-mono font-bold text-[#172B25]">
-                              PKR {lineTotal.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                            {/* Line Total PKR - Editable to auto calculate rate */}
+                            <td className="py-3 px-3 text-right bg-emerald-100/40">
+                              <input
+                                type="number"
+                                min={0}
+                                step="any"
+                                disabled={isConfirmed}
+                                value={line.weightKg > 0 && line.ratePerKg > 0 ? Math.round(line.weightKg * line.ratePerKg) : (line.targetTotal || '')}
+                                placeholder="0"
+                                onChange={(e) => handleLineTotalChange(p.id, parseFloat(e.target.value || '0'))}
+                                className="w-28 bg-white border border-emerald-400 rounded-xl px-2.5 py-1.5 text-right font-mono font-bold text-xs text-emerald-950 focus:ring-2 focus:ring-emerald-700/30 outline-none shadow-2xs"
+                              />
                             </td>
                           </tr>
                         );
@@ -1250,7 +1478,18 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 3: GALLA RECONCILIATION & DAILY PROFIT */}
+      {/* TAB 3: BRANCH REMITTANCE (MANSEHRA CASH & BANK TO OKARA OWNER) */}
+      {/* ========================================================================= */}
+      {activeTab === 'REMITTANCE' && (
+        <BranchRemittanceSection
+          selectedDate={selectedDate}
+          onTotalCashRemittedChange={setRemittedCashTotal}
+          showToast={showToast}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 4: GALLA RECONCILIATION & DAILY PROFIT */}
       {/* ========================================================================= */}
       {activeTab === 'GALLA' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1303,10 +1542,17 @@ export const DailySalesEntryScreen: React.FC<DailySalesEntryScreenProps> = ({
                 <span className="font-mono font-bold text-rose-600">- PKR {todayPurchasesTotal.cashPaid.toLocaleString()}</span>
               </div>
 
+              {remittedCashTotal > 0 && (
+                <div className="flex justify-between items-center bg-emerald-50/80 p-2 rounded-xl text-emerald-950 border border-emerald-200">
+                  <span className="font-semibold">مانسہرہ سے اوکاڑہ کیش بھیجا:</span>
+                  <span className="font-mono font-bold text-emerald-800">- PKR {remittedCashTotal.toLocaleString()}</span>
+                </div>
+              )}
+
               <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-sm font-bold text-emerald-800">
-                <span>گلے میں خالص کیش:</span>
-                <span className="font-mono text-base">
-                  PKR {Math.max(0, cashAmount - todayPurchasesTotal.cashPaid).toLocaleString()}
+                <span>گلے میں خالص کیش باقی:</span>
+                <span className="font-mono text-base font-black">
+                  PKR {Math.max(0, cashAmount - todayPurchasesTotal.cashPaid - remittedCashTotal).toLocaleString()}
                 </span>
               </div>
             </div>
