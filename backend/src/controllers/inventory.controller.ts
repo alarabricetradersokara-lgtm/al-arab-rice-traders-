@@ -570,3 +570,55 @@ export const getWarehouses = async (req: Request, res: Response, next: NextFunct
     next(err);
   }
 };
+
+export const updateProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const { name, variety, grade, defaultBagWeightKg, costPricePerKg, salePricePerKg, reorderLevelKg, categoryId } = req.body;
+
+    const existing = await prisma.riceProduct.findUnique({ where: { id } });
+    if (!existing) {
+      throw new AppError('Rice variety not found', 404);
+    }
+
+    const updated = await prisma.riceProduct.update({
+      where: { id },
+      data: {
+        ...(name && { name }),
+        ...(variety && { variety }),
+        ...(grade && { grade }),
+        ...(defaultBagWeightKg !== undefined && { defaultBagWeightKg: parseFloat(defaultBagWeightKg) }),
+        ...(costPricePerKg !== undefined && { costPricePerKg: new Decimal(costPricePerKg) }),
+        ...(salePricePerKg !== undefined && { salePricePerKg: new Decimal(salePricePerKg) }),
+        ...(reorderLevelKg !== undefined && { reorderLevelKg: new Decimal(reorderLevelKg) }),
+        ...(categoryId && { categoryId }),
+      },
+    });
+
+    sendSuccess(res, updated, 'Rice variety updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+
+    const existing = await prisma.riceProduct.findUnique({ where: { id } });
+    if (!existing) {
+      throw new AppError('Rice variety not found', 404);
+    }
+
+    // Clean up dependent records gracefully
+    await prisma.stockMovement.deleteMany({ where: { productId: id } });
+    await prisma.stock.deleteMany({ where: { productId: id } });
+    await prisma.dailySalesEntryLine.deleteMany({ where: { productId: id } });
+    await prisma.purchaseItem.deleteMany({ where: { productId: id } });
+    await prisma.riceProduct.delete({ where: { id } });
+
+    sendSuccess(res, null, 'Rice variety deleted successfully');
+  } catch (err) {
+    next(err);
+  }
+};

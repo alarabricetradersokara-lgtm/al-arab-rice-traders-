@@ -39,6 +39,10 @@ export const partyService = {
     return res.data.data;
   },
 
+  deleteCustomer: async (id: string): Promise<void> => {
+    await api.delete(`/parties/customers/${id}`);
+  },
+
   getCustomerStatement: async (
     id: string,
     params?: { startDate?: string; endDate?: string }
@@ -102,6 +106,10 @@ export const partyService = {
   updateSupplier: async (id: string, data: Partial<Supplier>): Promise<Supplier> => {
     const res = await api.put(`/parties/suppliers/${id}`, data);
     return res.data.data;
+  },
+
+  deleteSupplier: async (id: string): Promise<void> => {
+    await api.delete(`/parties/suppliers/${id}`);
   },
 
   getSupplierStatement: async (

@@ -22,6 +22,8 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Send,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 
 interface PartyManagementScreenProps {
@@ -124,6 +126,34 @@ export const PartyManagementScreen: React.FC<PartyManagementScreenProps> = ({
     if (activeTab === 'CUSTOMERS') fetchCustomers();
     else fetchSuppliers();
     showToast('کھاتہ بیلنس دوبارہ تصدیق کر لیا گیا (Balances Reconciled)');
+  };
+
+  const handleDeleteCustomer = async (e: React.MouseEvent, c: Customer) => {
+    e.stopPropagation();
+    if (window.confirm(`کیا آپ واقعی گاہک "${c.name}" کو ڈیلیٹ کرنا چاہتے ہیں؟ اس سے وابستہ تمام کھاتہ اینٹریز بھی ختم ہو جائیں گی۔`)) {
+      try {
+        await partyService.deleteCustomer(c.id);
+        showToast(`گاہک "${c.name}" کامیابی سے حذف کر دیا گیا۔`);
+        fetchCustomers();
+        fetchSummary();
+      } catch (err: any) {
+        showToast(err.response?.data?.message || err.message || 'گاہک حذف کرنے میں غلطی ہوئی۔');
+      }
+    }
+  };
+
+  const handleDeleteSupplier = async (e: React.MouseEvent, s: Supplier) => {
+    e.stopPropagation();
+    if (window.confirm(`کیا آپ واقعی سپلائر / آڑھتی "${s.name}" کو ڈیلیٹ کرنا چاہتے ہیں؟`)) {
+      try {
+        await partyService.deleteSupplier(s.id);
+        showToast(`سپلائر "${s.name}" کامیابی سے حذف کر دیا گیا۔`);
+        fetchSuppliers();
+        fetchSummary();
+      } catch (err: any) {
+        showToast(err.response?.data?.message || err.message || 'سپلائر حذف کرنے میں غلطی ہوئی۔');
+      }
+    }
   };
 
   // WhatsApp statement share
@@ -463,8 +493,26 @@ export const PartyManagementScreen: React.FC<PartyManagementScreenProps> = ({
                           </div>
                         </div>
 
-                        {/* Balance Badge */}
-                        <div className="text-right flex-shrink-0">
+                        {/* Balance Badge & Actions */}
+                        <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => onOpenCustomerModal(c)}
+                              className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              title="گاہک میں ترمیم کریں (Edit)"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteCustomer(e, c)}
+                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="گاہک حذف کریں (Delete)"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                           <div
                             className={`text-lg font-black font-mono leading-none ${
                               hasBalance ? 'text-[#087A55]' : 'text-gray-400'
@@ -473,7 +521,7 @@ export const PartyManagementScreen: React.FC<PartyManagementScreenProps> = ({
                             PKR {bal.toLocaleString()}
                           </div>
                           <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-1 ${
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block ${
                               hasBalance
                                 ? 'bg-emerald-100 text-[#087A55]'
                                 : 'bg-gray-100 text-gray-600'
@@ -570,8 +618,26 @@ export const PartyManagementScreen: React.FC<PartyManagementScreenProps> = ({
                           </div>
                         </div>
 
-                        {/* Balance Badge */}
-                        <div className="text-right flex-shrink-0">
+                        {/* Balance Badge & Actions */}
+                        <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => onOpenSupplierModal(s)}
+                              className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              title="سپلائر میں ترمیم کریں (Edit)"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteSupplier(e, s)}
+                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="سپلائر حذف کریں (Delete)"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                           <div
                             className={`text-lg font-black font-mono leading-none ${
                               hasBalance ? 'text-red-600' : 'text-gray-400'
@@ -580,7 +646,7 @@ export const PartyManagementScreen: React.FC<PartyManagementScreenProps> = ({
                             PKR {bal.toLocaleString()}
                           </div>
                           <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-1 ${
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block ${
                               hasBalance
                                 ? 'bg-red-100 text-red-700'
                                 : 'bg-gray-100 text-gray-600'
@@ -668,6 +734,22 @@ export const PartyManagementScreen: React.FC<PartyManagementScreenProps> = ({
                       <td className="py-3 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1">
                           <button
+                            type="button"
+                            onClick={() => onOpenCustomerModal(c)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                            title="ترمیم کریں (Edit)"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteCustomer(e, c)}
+                            className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="حذف کریں (Delete)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
                             onClick={() => onOpenCustomerReceipt(c)}
                             className="p-1.5 text-emerald-700 hover:bg-emerald-50 rounded-lg"
                             title="+ ملے (وصولی)"
@@ -718,6 +800,22 @@ export const PartyManagementScreen: React.FC<PartyManagementScreenProps> = ({
                       </td>
                       <td className="py-3 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => onOpenSupplierModal(s)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                            title="ترمیم کریں (Edit)"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteSupplier(e, s)}
+                            className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="حذف کریں (Delete)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                           <button
                             onClick={() => onOpenSupplierPayment(s)}
                             className="p-1.5 text-red-700 hover:bg-red-50 rounded-lg"

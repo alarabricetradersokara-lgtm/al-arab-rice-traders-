@@ -22,6 +22,17 @@ export const inventoryService = {
     return res.data?.data;
   },
 
+  async updateProduct(id: string, data: any): Promise<RiceProduct> {
+    await ensureAuthenticated();
+    const res = await api.put(`/inventory/products/${id}`, data);
+    return res.data?.data;
+  },
+
+  async deleteProduct(id: string): Promise<void> {
+    await ensureAuthenticated();
+    await api.delete(`/inventory/products/${id}`);
+  },
+
   async getCategories(): Promise<RiceCategory[]> {
     await ensureAuthenticated();
     const res = await api.get('/inventory/categories');

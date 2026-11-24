@@ -475,6 +475,7 @@ function AppContent() {
               isLoading={isLoading}
               onOpenCreateModal={() => setIsCreateProductOpen(true)}
               onSelectProductMovements={handleViewLedgerForProduct}
+              onRefresh={handleRefreshAll}
             />
           )}
 

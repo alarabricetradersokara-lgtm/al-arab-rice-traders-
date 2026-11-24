@@ -35,6 +35,10 @@ export const purchaseService = {
     return res.data.data;
   },
 
+  deletePurchase: async (id: string): Promise<void> => {
+    await api.delete(`/purchases/${id}`);
+  },
+
   createPurchaseReturn: async (payload: CreatePurchaseReturnInput): Promise<any> => {
     const res = await api.post('/purchases/return', payload);
     return res.data.data;

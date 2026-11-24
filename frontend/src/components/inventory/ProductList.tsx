@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { RiceProduct, RiceCategory } from '../../types/inventory';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
-import { Search, Plus, Sparkles, Filter } from 'lucide-react';
+import { Search, Plus, Sparkles, Filter, Edit2, Trash2 } from 'lucide-react';
+import { EditProductModal } from './EditProductModal';
+import { inventoryService } from '../../services/inventory.service';
 
 interface ProductListProps {
   products: RiceProduct[];
@@ -10,6 +12,7 @@ interface ProductListProps {
   isLoading: boolean;
   onOpenCreateModal: () => void;
   onSelectProductMovements: (productId: string) => void;
+  onRefresh?: () => void;
 }
 
 export const ProductList: React.FC<ProductListProps> = ({
@@ -18,9 +21,12 @@ export const ProductList: React.FC<ProductListProps> = ({
   isLoading,
   onOpenCreateModal,
   onSelectProductMovements,
+  onRefresh,
 }) => {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [editingProduct, setEditingProduct] = useState<RiceProduct | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filtered = products.filter((p) => {
     const matchesSearch =
@@ -33,6 +39,20 @@ export const ProductList: React.FC<ProductListProps> = ({
 
   const formatGrade = (grade: string) => {
     return grade.replace('_', ' ');
+  };
+
+  const handleDeleteProduct = async (product: RiceProduct) => {
+    if (window.confirm(`کیا آپ واقعی چاول ورائٹی "${product.name}" کو حذف کرنا چاہتے ہیں؟ اس سے وابستہ تمام اسٹاک ریکارڈز بھی ختم ہو جائیں گے۔`)) {
+      try {
+        setIsDeleting(true);
+        await inventoryService.deleteProduct(product.id);
+        if (onRefresh) onRefresh();
+      } catch (err: any) {
+        alert(err.response?.data?.message || err.message || 'چاول حذف کرنے میں غلطی ہوئی۔');
+      } finally {
+        setIsDeleting(false);
+      }
+    }
   };
 
   return (
@@ -167,13 +187,32 @@ export const ProductList: React.FC<ProductListProps> = ({
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onSelectProductMovements(product.id)}
-                      >
-                        Ledger
-                      </Button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setEditingProduct(product)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                          title="ترمیم کریں (Edit)"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isDeleting}
+                          onClick={() => handleDeleteProduct(product)}
+                          className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="حذف کریں (Delete)"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onSelectProductMovements(product.id)}
+                        >
+                          Ledger
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -182,6 +221,17 @@ export const ProductList: React.FC<ProductListProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Edit Modal */}
+      <EditProductModal
+        isOpen={!!editingProduct}
+        onClose={() => setEditingProduct(null)}
+        product={editingProduct}
+        categories={categories}
+        onSuccess={() => {
+          if (onRefresh) onRefresh();
+        }}
+      />
     </div>
   );
 };

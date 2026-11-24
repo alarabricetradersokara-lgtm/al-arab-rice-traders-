@@ -267,6 +267,27 @@ export const updateCustomer = async (req: Request, res: Response, next: NextFunc
   }
 };
 
+/**
+ * Delete Customer
+ */
+export const deleteCustomer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const existing = await prisma.customer.findUnique({ where: { id } });
+    if (!existing) {
+      throw new AppError('Customer not found', 404);
+    }
+
+    await prisma.customerLedger.deleteMany({ where: { customerId: id } });
+    await prisma.dailySalesCustomerAllocation.deleteMany({ where: { customerId: id } });
+    await prisma.customer.delete({ where: { id } });
+
+    sendSuccess(res, null, 'Customer deleted successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
 // =========================================================================
 // 2. SUPPLIERS MANAGEMENT
 // =========================================================================
@@ -520,6 +541,27 @@ export const updateSupplier = async (req: Request, res: Response, next: NextFunc
     });
 
     sendSuccess(res, updated, 'Supplier profile updated successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Delete Supplier
+ */
+export const deleteSupplier = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const existing = await prisma.supplier.findUnique({ where: { id } });
+    if (!existing) {
+      throw new AppError('Supplier not found', 404);
+    }
+
+    await prisma.supplierLedger.deleteMany({ where: { supplierId: id } });
+    await prisma.purchase.deleteMany({ where: { supplierId: id } });
+    await prisma.supplier.delete({ where: { id } });
+
+    sendSuccess(res, null, 'Supplier deleted successfully');
   } catch (err) {
     next(err);
   }

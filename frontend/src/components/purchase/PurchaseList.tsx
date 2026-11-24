@@ -17,6 +17,7 @@ import {
   Building2,
   Scale,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 
 interface PurchaseListProps {
@@ -66,6 +67,17 @@ export const PurchaseList: React.FC<PurchaseListProps> = ({
   useEffect(() => {
     fetchPurchases();
   }, [selectedSupplierId, selectedWarehouseId]);
+
+  const handleDeletePurchase = async (p: Purchase) => {
+    if (window.confirm(`کیا آپ واقعی منڈی بل "${p.purchaseNumber}" (سپلائر: ${p.supplier?.name}) کو حذف کرنا چاہتے ہیں؟ اس سے متعلقہ اسٹاک کم ہو جائے گا اور کھاتہ بیلنس خود بخود ایڈجسٹ ہو جائے گا۔`)) {
+      try {
+        await purchaseService.deletePurchase(p.id);
+        fetchPurchases();
+      } catch (err: any) {
+        alert(err.response?.data?.message || err.message || 'خریداری بل حذف کرنے میں غلطی ہوئی۔');
+      }
+    }
+  };
 
   // Client-side search and filtering
   const filteredPurchases = purchases.filter((p) => {
@@ -358,6 +370,13 @@ export const PurchaseList: React.FC<PurchaseListProps> = ({
                             title="Debit Note / Quality Return"
                           >
                             <RotateCcw className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePurchase(p)}
+                            className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="بل حذف کریں (Delete & Revert Stock)"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>

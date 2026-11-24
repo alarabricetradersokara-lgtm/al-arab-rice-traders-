@@ -5,6 +5,8 @@ import {
   adjustStock,
   getProducts,
   createProduct,
+  updateProduct,
+  deleteProduct,
   createOpeningStock,
   recordWastage,
   getStockAlerts,
@@ -20,6 +22,8 @@ router.use(authenticateJWT);
 
 router.get('/products', requirePermission('inventory:view'), getProducts);
 router.post('/products', requirePermission('inventory:create'), createProduct);
+router.put('/products/:id', requirePermission('inventory:create'), updateProduct);
+router.delete('/products/:id', requirePermission('inventory:create'), deleteProduct);
 
 router.get('/categories', requirePermission('inventory:view'), getCategories);
 router.get('/warehouses', requirePermission('inventory:view'), getWarehouses);

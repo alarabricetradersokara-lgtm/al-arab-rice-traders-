@@ -642,3 +642,63 @@ export const getSupplierStatement = async (req: Request, res: Response, next: Ne
     next(err);
   }
 };
+
+export const deletePurchase = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const purchase = await prisma.purchase.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+
+    if (!purchase) {
+      throw new AppError('Purchase inward record not found', 404);
+    }
+
+    // Revert stock additions
+    for (const it of purchase.items) {
+      const stock = await prisma.stock.findUnique({
+        where: { warehouseId_productId: { warehouseId: purchase.warehouseId, productId: it.productId } },
+      });
+      if (stock) {
+        const newBags = Math.max(0, stock.currentBags - it.bagCount);
+        const newWeight = Decimal.max(0, new Decimal(stock.currentWeightKg.toString()).minus(new Decimal(it.netWeightKg.toString())));
+        await prisma.stock.update({
+          where: { id: stock.id },
+          data: {
+            currentBags: newBags,
+            currentWeightKg: newWeight,
+            availableBags: newBags,
+            availableWeightKg: newWeight,
+          },
+        });
+      }
+    }
+
+    // Revert supplier balance
+    if (purchase.balanceAmount && Number(purchase.balanceAmount) > 0) {
+      const supplier = await prisma.supplier.findUnique({ where: { id: purchase.supplierId } });
+      if (supplier) {
+        const newBal = Decimal.max(0, new Decimal(supplier.currentBalance.toString()).minus(new Decimal(purchase.balanceAmount.toString())));
+        await prisma.supplier.update({
+          where: { id: supplier.id },
+          data: { currentBalance: newBal },
+        });
+      }
+    }
+
+    await prisma.supplierLedger.deleteMany({
+      where: {
+        supplierId: purchase.supplierId,
+        referenceNo: purchase.purchaseNumber,
+      },
+    });
+
+    await prisma.purchaseItem.deleteMany({ where: { purchaseId: id } });
+    await prisma.purchase.delete({ where: { id } });
+
+    sendSuccess(res, null, 'Purchase invoice deleted and inventory reversed successfully');
+  } catch (err) {
+    next(err);
+  }
+};
