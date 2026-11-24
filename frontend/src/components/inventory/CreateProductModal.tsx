@@ -110,18 +110,13 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
             <label className="text-xs font-bold text-slate-800 block mb-1">
               SKU کوڈ (Code)
             </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="خودکار (Auto Assigned)"
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-700/20 outline-none"
-              />
-              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">
-                تسلسل سے
-              </span>
-            </div>
+            <input
+              type="text"
+              placeholder="خودکار ترتیب وار (Auto AR-001)"
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-700/20 outline-none"
+            />
             <span className="text-[10px] text-slate-400 block mt-0.5">
               خالی چھوڑیں تو سسٹم خود (AR-001) نمبر دے گا
             </span>
@@ -132,51 +127,57 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
           <div>
             <label className="text-xs font-bold text-slate-700 block mb-1">
-              معیاری بوری کا وزن (Bag Weight)
+              معیاری بوری وزن (Bag Weight)
             </label>
-            <div className="relative">
+            <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-emerald-700/20">
               <input
                 type="number"
                 step="0.5"
                 required
                 value={defaultBagWeightKg}
                 onChange={(e) => setDefaultBagWeightKg(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-700/20 outline-none"
+                className="w-full px-3 py-2 text-sm font-mono font-bold text-slate-900 outline-none"
               />
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Kg</span>
+              <span className="px-3 py-2 bg-slate-100 text-xs font-bold text-slate-600 border-l border-slate-200 shrink-0">
+                کلو (Kg)
+              </span>
             </div>
           </div>
 
           <div>
             <label className="text-xs font-bold text-slate-700 block mb-1">
-              خریداری ریٹ فی کلو (Cost / Kg)
+              خریداری لاگت (Cost / Kg)
             </label>
-            <div className="relative">
+            <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-emerald-700/20">
               <input
                 type="number"
                 step="any"
                 value={costPricePerKg}
                 onChange={(e) => setCostPricePerKg(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-700/20 outline-none"
+                className="w-full px-3 py-2 text-sm font-mono font-bold text-slate-900 outline-none"
               />
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400">PKR</span>
+              <span className="px-2.5 py-2 bg-slate-100 text-[11px] font-bold text-slate-600 border-l border-slate-200 shrink-0">
+                روپے/کلو
+              </span>
             </div>
           </div>
 
           <div>
             <label className="text-xs font-bold text-slate-700 block mb-1">
-              فروخت ریٹ فی کلو (Sale / Kg) *
+              فروخت ریٹ (Sale / Kg) *
             </label>
-            <div className="relative">
+            <div className="flex items-center bg-white border border-emerald-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-emerald-700/20">
               <input
                 type="number"
                 step="any"
                 required
                 value={salePricePerKg}
                 onChange={(e) => setSalePricePerKg(e.target.value)}
-                className="w-full bg-white border border-emerald-300 rounded-xl px-3 py-2 text-sm font-mono font-bold text-emerald-800 focus:ring-2 focus:ring-emerald-700/20 outline-none"
+                className="w-full px-3 py-2 text-sm font-mono font-bold text-emerald-800 outline-none"
               />
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-emerald-700">PKR</span>
+              <span className="px-2.5 py-2 bg-emerald-100 text-[11px] font-bold text-emerald-800 border-l border-emerald-200 shrink-0">
+                روپے/کلو
+              </span>
             </div>
           </div>
         </div>
@@ -247,15 +248,15 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({
 
               {/* Realtime Calculation Display */}
               {computedOpeningKg > 0 && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-2 text-emerald-900 font-bold">
-                    <Calculator className="w-4 h-4 text-emerald-700" />
+                    <Calculator className="w-4 h-4 text-emerald-700 shrink-0" />
                     <span>
-                      کل افتتاحی اسٹاک: {numBags} بوریاں ({bagWt} کلو والی) + {numLoose} کلو کھلا
+                      کل افتتاح: {numBags} بوریاں ({bagWt} کلو والی) + {numLoose} کلو کھلا چاول
                     </span>
                   </div>
-                  <div className="font-mono font-black text-sm text-emerald-900">
-                    {computedOpeningKg.toLocaleString()} Kg (~ {computedOpeningMaunds} من)
+                  <div dir="ltr" className="font-mono font-black text-sm text-emerald-950 bg-white/80 px-2.5 py-1 rounded-lg border border-emerald-300">
+                    {computedOpeningKg.toLocaleString()} Kg (~ {computedOpeningMaunds} md)
                   </div>
                 </div>
               )}

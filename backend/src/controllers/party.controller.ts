@@ -278,9 +278,32 @@ export const deleteCustomer = async (req: Request, res: Response, next: NextFunc
       throw new AppError('Customer not found', 404);
     }
 
-    await prisma.customerLedger.deleteMany({ where: { customerId: id } });
-    await prisma.dailySalesCustomerAllocation.deleteMany({ where: { customerId: id } });
-    await prisma.customer.delete({ where: { id } });
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete associated receipts
+      await tx.receipt.deleteMany({ where: { customerId: id } });
+
+      // 2. Delete daily sales allocations
+      await tx.dailySalesCustomerAllocation.deleteMany({ where: { customerId: id } });
+
+      // 3. Delete customer ledgers
+      await tx.customerLedger.deleteMany({ where: { customerId: id } });
+
+      // 4. Delete sales returns directly referencing customerId
+      await tx.salesReturn.deleteMany({ where: { customerId: id } });
+
+      // 5. Delete sales and their items/returns/daily items
+      const sales = await tx.sale.findMany({ where: { customerId: id }, select: { id: true } });
+      const saleIds = sales.map((s) => s.id);
+      if (saleIds.length > 0) {
+        await tx.dailySalesItem.deleteMany({ where: { saleId: { in: saleIds } } });
+        await tx.salesReturn.deleteMany({ where: { saleId: { in: saleIds } } });
+        await tx.saleItem.deleteMany({ where: { saleId: { in: saleIds } } });
+        await tx.sale.deleteMany({ where: { id: { in: saleIds } } });
+      }
+
+      // 6. Finally delete customer
+      await tx.customer.delete({ where: { id } });
+    });
 
     sendSuccess(res, null, 'Customer deleted successfully');
   } catch (err) {
@@ -557,9 +580,28 @@ export const deleteSupplier = async (req: Request, res: Response, next: NextFunc
       throw new AppError('Supplier not found', 404);
     }
 
-    await prisma.supplierLedger.deleteMany({ where: { supplierId: id } });
-    await prisma.purchase.deleteMany({ where: { supplierId: id } });
-    await prisma.supplier.delete({ where: { id } });
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete associated payments
+      await tx.payment.deleteMany({ where: { supplierId: id } });
+
+      // 2. Delete commissions
+      await tx.commission.deleteMany({ where: { supplierId: id } });
+
+      // 3. Delete supplier ledgers
+      await tx.supplierLedger.deleteMany({ where: { supplierId: id } });
+
+      // 4. Delete purchases and their items/returns
+      const purchases = await tx.purchase.findMany({ where: { supplierId: id }, select: { id: true } });
+      const purchaseIds = purchases.map((p) => p.id);
+      if (purchaseIds.length > 0) {
+        await tx.purchaseReturn.deleteMany({ where: { purchaseId: { in: purchaseIds } } });
+        await tx.purchaseItem.deleteMany({ where: { purchaseId: { in: purchaseIds } } });
+        await tx.purchase.deleteMany({ where: { id: { in: purchaseIds } } });
+      }
+
+      // 5. Finally delete supplier
+      await tx.supplier.delete({ where: { id } });
+    });
 
     sendSuccess(res, null, 'Supplier deleted successfully');
   } catch (err) {
