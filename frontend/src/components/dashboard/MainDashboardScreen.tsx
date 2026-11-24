@@ -20,6 +20,7 @@ import {
   Clock,
   Layers,
   Landmark,
+  Receipt,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -620,59 +621,75 @@ export const MainDashboardScreen: React.FC<MainDashboardScreenProps> = ({ onNavi
                   سٹاک کی مقدار
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-center">
-                <div className="h-64 sm:col-span-3">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={
-                          charts.varietyDistribution && charts.varietyDistribution.length > 0
+              {(charts.varietyDistribution && charts.varietyDistribution.length > 0) ||
+              (charts.topProducts && charts.topProducts.length > 0) ? (
+                <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-center">
+                  <div className="h-64 sm:col-span-3">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={
+                            charts.varietyDistribution && charts.varietyDistribution.length > 0
+                              ? charts.varietyDistribution
+                              : charts.topProducts.map((p) => ({ name: p.name, bags: p.bags, weightKg: p.weightKg }))
+                          }
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={88}
+                          paddingAngle={3}
+                          dataKey="weightKg"
+                          nameKey="name"
+                        >
+                          {(charts.varietyDistribution && charts.varietyDistribution.length > 0
                             ? charts.varietyDistribution
-                            : charts.topProducts.map((p) => ({ name: p.name, bags: p.bags, weightKg: p.weightKg }))
-                        }
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={55}
-                        outerRadius={88}
-                        paddingAngle={3}
-                        dataKey="weightKg"
-                        nameKey="name"
-                      >
-                        {(charts.varietyDistribution && charts.varietyDistribution.length > 0
-                          ? charts.varietyDistribution
-                          : charts.topProducts
-                        ).map((_, index) => (
-                          <Cell key={`var-cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        formatter={(val: any, _name: any, item: any) => [
-                          `${Number(val).toLocaleString()} Kg (${item?.payload?.bags || 0} بوریاں)`,
-                          'سٹاک کا وزن',
-                        ]}
-                        contentStyle={{ backgroundColor: '#172B25', borderRadius: 8, color: '#fff', fontSize: 11 }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="sm:col-span-2 space-y-2 max-h-60 overflow-y-auto pr-1">
-                  {(charts.varietyDistribution && charts.varietyDistribution.length > 0
-                    ? charts.varietyDistribution
-                    : charts.topProducts
-                  ).slice(0, 5).map((v: any, idx: number) => (
-                    <div key={v.name} className="flex items-center justify-between text-xs p-1.5 rounded-lg bg-gray-50 border border-gray-100">
-                      <div className="flex items-center space-x-1.5 truncate mr-2">
-                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></span>
-                        <span className="font-semibold text-[#172B25] truncate">{v.name}</span>
+                            : charts.topProducts
+                          ).map((_, index) => (
+                            <Cell key={`var-cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(val: any, _name: any, item: any) => [
+                            `${Number(val).toLocaleString()} Kg (${item?.payload?.bags || 0} بوریاں)`,
+                            'سٹاک کا وزن',
+                          ]}
+                          contentStyle={{ backgroundColor: '#172B25', borderRadius: 8, color: '#fff', fontSize: 11 }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="sm:col-span-2 space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {(charts.varietyDistribution && charts.varietyDistribution.length > 0
+                      ? charts.varietyDistribution
+                      : charts.topProducts
+                    ).slice(0, 5).map((v: any, idx: number) => (
+                      <div key={v.name} className="flex items-center justify-between text-xs p-1.5 rounded-lg bg-gray-50 border border-gray-100">
+                        <div className="flex items-center space-x-1.5 truncate mr-2">
+                          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></span>
+                          <span className="font-semibold text-[#172B25] truncate">{v.name}</span>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <span className="font-bold text-[#087A55] block">{v.bags || 0} بوری</span>
+                          <span className="text-[10px] text-[#718078]">{Number(v.weightKg).toLocaleString()} Kg</span>
+                        </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <span className="font-bold text-[#087A55] block">{v.bags || 0} بوری</span>
-                        <span className="text-[10px] text-[#718078]">{Number(v.weightKg).toLocaleString()} Kg</span>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-slate-50/70 border border-dashed border-slate-200 rounded-xl">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-2.5">
+                    <Boxes className="w-6 h-6 text-slate-400" />
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-700">ابھی دکان میں کوئی سٹاک درج نہیں ہے</h4>
+                  <p className="text-[11px] text-slate-400 max-w-xs mt-1">
+                    جب مانسہرہ برانچ کا افتتاحی سٹاک یا مال خریداری درج ہو گی تو سٹاک کی تقسیم کا پائی چارٹ یہاں خودکار نظر آئے گا۔
+                  </p>
+                  <span className="inline-block mt-3 px-3 py-1 bg-white border border-slate-200 rounded-full text-[10px] font-bold text-slate-600 font-mono">
+                    کل سٹاک: 0 بوریاں (0 Kg)
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Chart 4: Expenses Breakdown Pie Chart */}
@@ -692,70 +709,83 @@ export const MainDashboardScreen: React.FC<MainDashboardScreenProps> = ({ onNavi
                   اخراجات
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-center">
-                <div className="h-64 sm:col-span-3">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={
-                          charts.expenseDistribution && charts.expenseDistribution.length > 0
-                            ? charts.expenseDistribution
-                            : [
-                                { category: 'LOADING UNLOADING (پلی داری)', amount: 45000 },
-                                { category: 'ELECTRICITY (بجلی کا بل)', amount: 28000 },
-                                { category: 'SHOP RENT (دکان کا کرایہ)', amount: 50000 },
-                                { category: 'TRANSPORTATION (ٹرانسپورٹ)', amount: 35000 },
-                                { category: 'OFFICE & TEA (چائے خرچہ)', amount: 12000 },
-                              ]
-                        }
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={55}
-                        outerRadius={88}
-                        paddingAngle={3}
-                        dataKey="amount"
-                        nameKey="category"
+              {charts.expenseDistribution &&
+              charts.expenseDistribution.length > 0 &&
+              charts.expenseDistribution.some((e: any) => Number(e.amount) > 0) ? (
+                <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-center">
+                  <div className="h-64 sm:col-span-3">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={charts.expenseDistribution}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={88}
+                          paddingAngle={3}
+                          dataKey="amount"
+                          nameKey="category"
+                        >
+                          {charts.expenseDistribution.map((_, index) => (
+                            <Cell
+                              key={`exp-cell-${index}`}
+                              fill={['#DC5050', '#E6A23C', '#3B82F6', '#8B5CF6', '#16A36A', '#EC4899', '#06B6D4'][index % 7]}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(val: any) => [`PKR ${Number(val).toLocaleString()}`, 'خرچہ']}
+                          contentStyle={{ backgroundColor: '#172B25', borderRadius: 8, color: '#fff', fontSize: 11 }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="sm:col-span-2 space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {charts.expenseDistribution.map((e: any, idx: number) => (
+                      <div
+                        key={e.category}
+                        className="flex items-center justify-between text-xs p-1.5 rounded-lg bg-gray-50 border border-gray-100"
                       >
-                        {(charts.expenseDistribution && charts.expenseDistribution.length > 0
-                          ? charts.expenseDistribution
-                          : [1, 2, 3, 4, 5]
-                        ).map((_, index) => (
-                          <Cell key={`exp-cell-${index}`} fill={['#DC5050', '#E6A23C', '#3B82F6', '#8B5CF6', '#16A36A'][index % 5]} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        formatter={(val: any) => [`PKR ${Number(val).toLocaleString()}`, 'خرچہ']}
-                        contentStyle={{ backgroundColor: '#172B25', borderRadius: 8, color: '#fff', fontSize: 11 }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="sm:col-span-2 space-y-2 max-h-60 overflow-y-auto pr-1">
-                  {(charts.expenseDistribution && charts.expenseDistribution.length > 0
-                    ? charts.expenseDistribution
-                    : [
-                        { category: 'پلی داری و لیبر', amount: 45000 },
-                        { category: 'دکان کا کرایہ', amount: 50000 },
-                        { category: 'ٹرانسپورٹ و گاری بھاڑہ', amount: 35000 },
-                        { category: 'بجلی و فیول', amount: 28000 },
-                        { category: 'چائے و متفرق خرچ', amount: 12000 },
-                      ]
-                  ).map((e: any, idx: number) => (
-                    <div key={e.category} className="flex items-center justify-between text-xs p-1.5 rounded-lg bg-gray-50 border border-gray-100">
-                      <div className="flex items-center space-x-1.5 truncate mr-2">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: ['#DC5050', '#E6A23C', '#3B82F6', '#8B5CF6', '#16A36A'][idx % 5] }}
-                        ></span>
-                        <span className="font-semibold text-[#172B25] truncate">{e.category}</span>
+                        <div className="flex items-center space-x-1.5 truncate mr-2">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                            style={{
+                              backgroundColor: [
+                                '#DC5050',
+                                '#E6A23C',
+                                '#3B82F6',
+                                '#8B5CF6',
+                                '#16A36A',
+                                '#EC4899',
+                                '#06B6D4',
+                              ][idx % 7],
+                            }}
+                          ></span>
+                          <span className="font-semibold text-[#172B25] truncate">{e.category}</span>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <span className="font-bold text-red-600">
+                            PKR {Number(e.amount).toLocaleString()}
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <span className="font-bold text-red-600">PKR {Number(e.amount).toLocaleString()}</span>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="h-64 flex flex-col items-center justify-center text-center p-6 bg-slate-50/70 border border-dashed border-slate-200 rounded-xl">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-2.5">
+                    <Receipt className="w-6 h-6 text-slate-400" />
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-700">ابھی کوئی دکان خرچہ درج نہیں ہے</h4>
+                  <p className="text-[11px] text-slate-400 max-w-xs mt-1">
+                    جب مانسہرہ برانچ یا اکاؤنٹنگ میں خرچے درج کیے جائیں گے تو ان کا پائی چارٹ یہاں خودکار ظاہر ہوگا۔
+                  </p>
+                  <span className="inline-block mt-3 px-3 py-1 bg-white border border-slate-200 rounded-full text-[10px] font-bold text-slate-600 font-mono">
+                    کل اخراجات: PKR 0
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Chart 5: Top Selling Rice Products (Horizontal Bar Chart) */}
