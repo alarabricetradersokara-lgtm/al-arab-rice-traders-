@@ -77,7 +77,7 @@ export const CommissionAgentModal: React.FC<CommissionAgentModalProps> = ({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Haji Abdul Sattar (Kamoke Broker)"
+            placeholder="مثلاً چوہدری عبدالستار (اناج مارکیٹ بروکر)"
             className="w-full px-3 py-2 bg-white border border-[#E4EAE5] rounded-xl text-sm focus:outline-none focus:border-emerald-600"
             required
           />

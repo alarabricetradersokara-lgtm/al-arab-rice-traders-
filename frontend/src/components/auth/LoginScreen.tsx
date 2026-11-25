@@ -11,7 +11,6 @@ import {
   Building2,
   AlertCircle,
   ArrowRight,
-  Sparkles,
 } from 'lucide-react';
 
 export const LoginScreen: React.FC = () => {
@@ -45,12 +44,6 @@ export const LoginScreen: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleFillAdmin = () => {
-    setUsername('admin');
-    setPassword('Admin@12345');
-    setErrorMessage(null);
   };
 
   return (
@@ -112,7 +105,7 @@ export const LoginScreen: React.FC = () => {
                   autoCapitalize="none"
                   autoCorrect="off"
                   autoComplete="username"
-                  placeholder="admin یا ای میل درج کریں"
+                  placeholder="اپنا یوزر نیم یا ای میل درج کریں"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 pl-10 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-emerald-700/30 focus:border-emerald-700 transition-all font-medium"
@@ -159,16 +152,6 @@ export const LoginScreen: React.FC = () => {
                 />
                 <span className="font-medium">مجھے لاگ ان رکھیں (Remember Me)</span>
               </label>
-
-              <button
-                type="button"
-                onClick={handleFillAdmin}
-                className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer flex items-center gap-1"
-                title="ایڈمن کے بنیادی کریڈینشلز درج کریں"
-              >
-                <Sparkles className="w-3 h-3" />
-                <span>بنیادی ایڈمن</span>
-              </button>
             </div>
 
             {/* Submit Button */}
