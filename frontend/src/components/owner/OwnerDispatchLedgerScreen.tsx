@@ -290,8 +290,8 @@ export const OwnerDispatchLedgerScreen: React.FC<OwnerDispatchLedgerScreenProps>
 
   // Share Statement on WhatsApp
   const handleShareWhatsApp = () => {
-    const text = `*العرب رائز ٹریڈرز (اوکاڑہ ⟷ مانسہرہ اونر کھاتہ)*%0A` +
-      `*اونر حاجی محمد عرب سرمایہ و مال کھاتہ*%0A` +
+    const text = `*العرب رائس ٹریڈرز (اوکاڑہ ⟷ مانسہرہ اونر کھاتہ)*%0A` +
+      `*اونر اجمل فیضان سرمایہ و مال کھاتہ*%0A` +
       `━━━━━━━━━━━━━━━━━━%0A` +
       `📦 *کل مال و سرمایہ بھیجا:* PKR ${totalSentAmount.toLocaleString()}%0A` +
       `💰 *کل پیسہ واپس وصول شدہ:* PKR ${totalRecoveredAmount.toLocaleString()}%0A` +

@@ -59,7 +59,7 @@ export const LoginScreen: React.FC = () => {
             <BrandEmblem size={84} className="shadow-2xl shadow-emerald-950/60" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center justify-center gap-2">
-            <span>العرب رائز ٹریڈرز</span>
+            <span>العرب رائس ٹریڈرز</span>
           </h1>
           <p className="text-xs sm:text-sm text-emerald-300 font-semibold mt-1 tracking-wide">
             AL ARAB RICE TRADERS · اوکاڑہ ⟷ مانسہرہ

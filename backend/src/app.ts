@@ -10,8 +10,17 @@ import { AppError } from './utils/AppError';
 export const createApp = (): Express => {
   const app = express();
 
+  // Trust reverse proxies (Vercel, Cloudflare, Nginx) for accurate IP determination in rate limiting
+  app.set('trust proxy', 1);
+
   // Security & HTTP Headers
-  app.use(helmet());
+  app.use(
+    helmet({
+      frameguard: { action: 'deny' },
+      hidePoweredBy: true,
+      noSniff: true,
+    })
+  );
 
   // CORS Configuration - Permissive for Vercel, localhost, and mobile PWA
   app.use(

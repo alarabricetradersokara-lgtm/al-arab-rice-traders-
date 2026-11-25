@@ -160,7 +160,7 @@ async function main() {
   // 3. Update company settings to disable multi-warehouse and set address
   await prisma.companySettings.updateMany({
     data: {
-      companyName: 'العرب رائز ٹریڈرز (AL ARAB RICE TRADERS)',
+      companyName: 'العرب رائس ٹریڈرز (AL ARAB RICE TRADERS)',
       address: 'مرکزی دکان و گودام، اناج مارکیٹ، مانسہرہ (Main Shop, Mansehra) | دفتر: اوکاڑہ (Okara)',
       enableMultiWarehouse: false,
       enableMilling: false,

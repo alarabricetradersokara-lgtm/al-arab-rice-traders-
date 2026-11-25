@@ -170,7 +170,7 @@ export const BranchExpensesSection: React.FC<BranchExpensesSectionProps> = ({
       return;
     }
 
-    let text = `*العرب رائز ٹریڈرز (مانسہرہ دکان کے اخراجات)*%0A` +
+    let text = `*العرب رائس ٹریڈرز (مانسہرہ دکان کے اخراجات)*%0A` +
       `📅 *تاریخ:* ${selectedDate}%0A` +
       `━━━━━━━━━━━━━━━━━━%0A`;
 

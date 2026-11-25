@@ -204,7 +204,7 @@ export const CreateBankAccountModal: React.FC<CreateBankAccountModalProps> = ({
             </label>
             <input
               type="text"
-              placeholder="مثلاً اجمل فیضان / العرب رائز ٹریڈرز"
+              placeholder="مثلاً اجمل فیضان / العرب رائس ٹریڈرز"
               value={accountTitle}
               onChange={(e) => setAccountTitle(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-700/20 outline-none"

@@ -164,7 +164,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const advancedItems = [
     {
       id: 'production' as NavTab,
-      labelUrdu: 'رائز ملنگ',
+      labelUrdu: 'رائس ملنگ',
       labelEn: 'Milling & Recovery Batches',
       icon: <Factory className="w-4 h-4" />,
       enabled: (companySettings?.enableMilling ?? false) && (hasPermission('inventory:adjust') || isSuperAdminOrAdmin),

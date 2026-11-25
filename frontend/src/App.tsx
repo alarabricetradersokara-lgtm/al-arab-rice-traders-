@@ -262,7 +262,7 @@ function AppContent() {
         <div className="w-16 h-16 rounded-3xl bg-emerald-700 flex items-center justify-center text-2xl font-black mb-4 animate-pulse shadow-xl shadow-emerald-900/50">
           AR
         </div>
-        <h2 className="text-xl font-bold tracking-tight text-white">العرب رائز ٹریڈرز</h2>
+        <h2 className="text-xl font-bold tracking-tight text-white">العرب رائس ٹریڈرز</h2>
         <p className="text-xs text-emerald-400 mt-1 font-medium">سیکیورٹی تصدیق جاری ہے...</p>
       </div>
     );

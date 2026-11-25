@@ -200,7 +200,7 @@ export const MainDashboardScreen: React.FC<MainDashboardScreenProps> = ({ onNavi
                 <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Overview Dashboard</span>
               </div>
               <p className="text-xs text-slate-500">
-                العرب رائز ٹریڈرز کا مجموعی مالی و کاروباری خلاصہ
+                العرب رائس ٹریڈرز کا مجموعی مالی و کاروباری خلاصہ
               </p>
             </div>
           </div>

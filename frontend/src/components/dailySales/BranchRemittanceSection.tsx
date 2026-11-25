@@ -327,7 +327,7 @@ export const BranchRemittanceSection: React.FC<BranchRemittanceSectionProps> = (
   // WhatsApp Voucher Share
   const handleShareWhatsApp = (rem: RemittanceRecord) => {
     const isBank = rem.mode === 'BANK';
-    const text = `*العرب رائز ٹریڈرز (اوکاڑہ ⟷ مانسہرہ)*%0A` +
+    const text = `*العرب رائس ٹریڈرز (اوکاڑہ ⟷ مانسہرہ)*%0A` +
       `*رسید وصولی رقم (Branch Remittance Voucher)*%0A` +
       `━━━━━━━━━━━━━━━━━━%0A` +
       `📅 *تاریخ:* ${rem.date} (${rem.createdAt})%0A` +
@@ -338,7 +338,7 @@ export const BranchRemittanceSection: React.FC<BranchRemittanceSectionProps> = (
       (rem.notes ? `📌 *تفصیل:* ${rem.notes}%0A` : '') +
       `━━━━━━━━━━━━━━━━━━%0A` +
       `✅ *تصدیق:* مانسہرہ برانچ سے یہ رقم اوکاڑہ ہیڈ آفس میں وصول ہو چکی ہے۔%0A` +
-      `شکریہ - حاجی محمد عرب (العرب رائز ٹریڈرز)`;
+      `شکریہ - اجمل فیضان (العرب رائس ٹریڈرز)`;
 
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };

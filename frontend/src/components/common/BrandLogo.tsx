@@ -164,7 +164,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
                 isDark ? 'text-slate-900' : 'text-white'
               }`}
             >
-              العرب رائز ٹریڈرز
+              العرب رائس ٹریڈرز
             </span>
           </div>
 

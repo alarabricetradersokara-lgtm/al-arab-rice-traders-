@@ -9,7 +9,7 @@ export const getCompanySettings = async (req: Request, res: Response, next: Next
     if (!settings) {
       settings = await prisma.companySettings.create({
         data: {
-          companyName: 'العرب رائز ٹریڈرز (AL ARAB RICE TRADERS)',
+          companyName: 'العرب رائس ٹریڈرز (AL ARAB RICE TRADERS)',
           businessType: 'Rice Traders & Commission Agents',
           address: 'مرکزی دکان و گودام، اناج مارکیٹ، مانسہرہ | ہیڈ آفس: اوکاڑہ',
           phone: '+92-300-1234567',

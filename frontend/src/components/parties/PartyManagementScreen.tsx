@@ -163,7 +163,7 @@ export const PartyManagementScreen: React.FC<PartyManagementScreenProps> = ({
     if (clean.startsWith('0')) clean = '92' + clean.slice(1);
     const amt = Number(balance).toLocaleString();
     const isRec = type === 'CUSTOMER';
-    const text = `السلام علیکم جناب ${name} صاحب!\nالعرب رائز ٹریڈرز (AL ARAB RICE TRADERS) کی جانب سے آپ کا کھاتہ بیلنس درج ذیل ہے:\n\n*موجودہ بقایا: PKR ${amt}* (${isRec ? 'آپ نے ادا کرنی ہے / لینا ہے' : 'ہم نے ادا کرنی ہے / دینا ہے'})\n\nمرکزی دکان: اناج مارکیٹ، مانسہرہ | رابطہ: 0300-1234567`;
+    const text = `السلام علیکم جناب ${name} صاحب!\nالعرب رائس ٹریڈرز (AL ARAB RICE TRADERS) کی جانب سے آپ کا کھاتہ بیلنس درج ذیل ہے:\n\n*موجودہ بقایا: PKR ${amt}* (${isRec ? 'آپ نے ادا کرنی ہے / لینا ہے' : 'ہم نے ادا کرنی ہے / دینا ہے'})\n\nمرکزی دکان: اناج مارکیٹ، مانسہرہ | رابطہ: 0300-1234567`;
     window.open(`https://wa.me/${clean}?text=${encodeURIComponent(text)}`, '_blank');
   };
 

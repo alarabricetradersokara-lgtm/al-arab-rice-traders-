@@ -107,7 +107,7 @@ export const PartyStatementModal: React.FC<PartyStatementModalProps> = ({
       `*Recent Ledger Entries:*\n` +
       `${recentLines || 'No recent entries'}\n` +
       `-------------------------------------------\n` +
-      `العرب رائز ٹریڈرز • اناج مارکیٹ، مانسہرہ / اوکاڑہ\n` +
+      `العرب رائس ٹریڈرز • اناج مارکیٹ، مانسہرہ / اوکاڑہ\n` +
       `رابطہ: 0300-1234567`;
 
     const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
