@@ -83,31 +83,14 @@ export const OwnerDispatchLedgerScreen: React.FC<OwnerDispatchLedgerScreenProps>
       if (rawDispatches) {
         setDispatches(JSON.parse(rawDispatches));
       } else {
-        // Sample initial dispatch from Okara
-        const seed: OwnerDispatchRecord[] = [
-          {
-            id: 'DISP-101',
-            date: new Date().toISOString().split('T')[0],
-            type: 'RICE_GOODS',
-            varietyName: '1121 کائنات سٹیم (Kainat Steam)',
-            bagCount: 500,
-            weightKg: 25000,
-            ratePerKg: 260,
-            totalAmount: 6500000,
-            vehicleNumber: 'LES-8920',
-            biltyNumber: 'BL-9402',
-            driverName: 'ڈرائیور ریاض احمد',
-            notes: 'اوکاڑہ سے مانسہرہ شاپ کے لیے نیا مال روانہ کیا گیا۔',
-            createdAt: '10:00 AM',
-          },
-        ];
-        setDispatches(seed);
-        localStorage.setItem(STORAGE_KEY_DISPATCH, JSON.stringify(seed));
+        setDispatches([]);
       }
 
       const rawRemit = localStorage.getItem(STORAGE_KEY_REMITTANCE);
       if (rawRemit) {
         setRemittances(JSON.parse(rawRemit));
+      } else {
+        setRemittances([]);
       }
     } catch (e) {
       console.error(e);
